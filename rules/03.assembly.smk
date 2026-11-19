@@ -76,6 +76,7 @@ rule rnaviral_assembly:
         # volume, so -o itself has to move.
         LOCAL_DIR="/tmp/rnaviral_assembly_{wildcards.family}_{wildcards.sample}_${{SLURM_JOB_ID:-$$}}"
         mkdir -p "$LOCAL_DIR"
+        trap 'rm -rf "$LOCAL_DIR"' EXIT
 
         # Detect real free memory on whatever node this attempt lands on,
         # rather than trusting the static resources.mem_gb fallback blind.
@@ -91,8 +92,34 @@ rule rnaviral_assembly:
             SPADES_MEM_GB={resources.mem_gb}
         fi
 
+        # Select only k-mers strictly shorter than the library's max read length
+        # (prevents SPAdes exit status 67 on 75 bp libraries such as Ips confusus).
+        #
+        # rstrip() takes NO argument on purpose. Snakemake parses this shell
+        # block as a Python string first, so a literal "\\r\\n" here would be
+        # turned into a real CR+LF before the shell ever saw it, splitting the
+        # Python string across lines -- that produced
+        # "SyntaxError: unterminated string literal (detected at line 9)" and
+        # failed all 8 Ips_confusus assemblies in ~15 s each. Bare rstrip()
+        # strips trailing whitespace including CR/LF and needs no escaping.
+        KMERS=$(python3 -c '
+import gzip, sys
+m = 0
+with gzip.open(sys.argv[1], "rt") as fh:
+    for i, line in enumerate(fh):
+        if i >= 40000:
+            break
+        if i % 4 == 1:
+            n = len(line.rstrip())
+            if n > m:
+                m = n
+ks = [str(k) for k in (21, 33, 45, 55, 67, 77) if k < m]
+print(",".join(ks) if ks else "auto")
+' {input.f1})
+        echo "[rnaviral_assembly] selected -k $KMERS" >&2
+
         rnaviralspades.py --pe1-1 {input.f1} --pe1-2 {input.f2} \
-            -k 21,33,45,55,67,77 -o "$LOCAL_DIR" -t {threads} -m $SPADES_MEM_GB
+            -k "$KMERS" -o "$LOCAL_DIR" -t {threads} -m $SPADES_MEM_GB
         cp "$LOCAL_DIR/contigs.fasta" {output.contigs}
         rm -rf "$LOCAL_DIR"
 
