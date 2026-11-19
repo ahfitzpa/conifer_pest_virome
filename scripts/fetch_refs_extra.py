@@ -6,10 +6,12 @@ import pandas as pd
 from Bio import SeqIO
 
 sys.stdout.reconfigure(encoding="utf-8")
-ROOT = Path(r"C:\Users\Amy\OneDrive - University College Dublin\Documents\conifer_pest_virome")
-REF = ROOT / "reference_data"
+# Repo root derived from this file, not a hardcoded developer path: these
+# scripts run on the cluster as well as locally.
+ROOT = Path(__file__).resolve().parents[1]
+REF = ROOT / "references"
 CACHE = REF / "ncbi"
-CACHE.mkdir(exist_ok=True)
+CACHE.mkdir(parents=True, exist_ok=True)
 FAMS = ["Aliusviridae", "Phasmaviridae", "Orthomyxoviridae",
         "Iflaviridae", "Tombusviridae"]
 RDRP_KEYS = ["rna-directed rna polymerase", "rna-dependent rna polymerase", "rdrp",
