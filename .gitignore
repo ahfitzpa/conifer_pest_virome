@@ -1,0 +1,46 @@
+# Huge data, databases, outputs, and temp dirs
+data/
+references/
+results/
+references/
+logs/
+benchmarks/
+tmp/
+tmp-hydra/
+tools/
+.snakemake/
+
+# Reports and backups
+report_phase2.html
+*.bak
+*.bak_*
+
+# Large bioinformatics / archive / container files (safety net)
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.fasta
+*.fa
+*.fna
+*.faa
+*.bam
+*.sam
+*.cram
+*.bcf
+*.vcf.gz
+*.dmnd
+*.db
+*.hmm
+*.sif
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.gz
+
+# Python / OS / editor clutter
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/

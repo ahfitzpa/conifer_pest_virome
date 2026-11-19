@@ -1,0 +1,180 @@
+import os
+import yaml
+
+# =========================================================================
+# 1. CONFIG & PATHS
+# =========================================================================
+def deep_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, dict) and isinstance(d.get(k), dict):
+            deep_update(d[k], v)
+        else:
+            d[k] = v
+    return d
+
+config = {}
+for f in ["configs/paths.yaml", "configs/phase2_assembly_analysis.yaml"]:
+    with open(f) as fh:
+        deep_update(config, yaml.safe_load(fh))
+
+# Opt-in overrides for the speed-up validation work. See
+# ENGINEERING_NOTES.md § Snakefile_phase2 and docs/SPEEDUP_PLAN.md.
+if os.environ.get("PHASE2_MANIFEST_OVERRIDE"):
+    config["manifest"] = os.environ["PHASE2_MANIFEST_OVERRIDE"]
+
+# Scratch-backed tmp, not node-local /tmp (small/shared, fills up fast).
+# Set before anything else runs so every shell subprocess and snakemake's
+# own tempfile use picks it up. See ENGINEERING_NOTES.md § Snakefile_phase2.
+TMPDIR = os.path.join(os.getcwd(), config["paths"]["tmp"])
+os.makedirs(TMPDIR, exist_ok=True)
+os.environ["TMPDIR"] = TMPDIR
+
+# accession must never span a path separator, otherwise Snakemake can't
+# disambiguate references/hosts/{accession} from nested outputs like
+# references/hosts/{accession}/mask.1.bt2
+wildcard_constraints:
+    accession = r"[^/]+"
+
+# Helper to get environment paths
+def get_env(tool_key):
+    return workflow.source_path(f"envs/{config['tools'][tool_key]}")
+
+# =========================================================================
+# 2. INCLUDES
+# =========================================================================
+# rules/01.input.smk loads the manifest (MANIFEST/SAMPLES/FAMILIES) and
+# provides get_reads()/get_reads_named() -- must come before anything
+# below that reads those globals or calls those helpers.
+include: "rules/00.setup.smk"
+include: "rules/01.input.smk"
+
+# =========================================================================
+# 3. MANIFEST-DERIVED HELPERS (stage wiring)
+# =========================================================================
+# Host scrubbing (get_hostile_ref/get_hostile_scrub_inputs,
+# the hostile_scrub/mask_and_index_host/download_host_genome/
+# mmseqs_host_classify/setup_mmseqs_nt_eukaryota(_index) rules, and the
+# PERFORM_HOST_SCRUBBING/options.perform_host_scrubbing switch) was removed
+# from the pipeline entirely -- see ENGINEERING_NOTES.md § host-removal
+# pilot.
+def get_fastp_input(wildcards):
+    # Always both paths, never os.path.exists(fq2): that's only correct
+    # for samples already fetched by DAG-build time -- for any sample not
+    # yet downloaded it misreads a genuinely-paired sample as single-end
+    # (the old get_trimmed_inputs bug). fastp_cleaning's
+    # shell always references {input.fq2} unconditionally (and its own
+    # output always declares fq2), so this keeps the same always-both-paths
+    # contract fastp_cleaning has always had.
+    fam = SAMPLES[wildcards.sample]['family']
+    sample = wildcards.sample
+    return {
+        "fq1": f"data/01.reads/{fam}/{sample}/{sample}_1.fastq.gz",
+        "fq2": f"data/01.reads/{fam}/{sample}/{sample}_2.fastq.gz",
+    }
+
+# =========================================================================
+# 4. REMAINING INCLUDES
+# =========================================================================
+include: "rules/02.fastp.smk"
+include: "rules/03.assembly.smk"
+include: "rules/04.taxonomy.smk"
+include: "rules/05.merge_tax.smk"
+include: "rules/06.annotation.smk"
+include: "rules/07.reporting.smk"
+include: "rules/08.ictv.smk"
+
+# See ENGINEERING_NOTES.md § Snakefile_phase2 (speed-up plan item 5).
+#
+# collect_viral_positives and annotate_viral_positives were localrules until
+# 2026-11-03 and had to be removed: --jobs is a GLOBAL ceiling across every
+# executor, not a per-executor one, so once 40 SLURM jobs are queued behind
+# the account CPU cap no local job can start at all. Measured on run 1062960:
+# 19 samples had all three taxonomy tools finished and zero collect outputs
+# existed after 25 h, while stage_sra_paired -- also local -- ran once at the
+# start when the queue was still empty. Because run_checkv consumes
+# collect's output and annotate consumes CheckV's, the whole tail of the
+# pipeline was serialised behind a queue that could not drain. Submitting
+# them costs a few seconds of SLURM overhead each and unblocks that chain.
+localrules:
+    stage_sra_paired, stage_sra_single, stage_local_paired, stage_local_single,
+    complete_family_reads, complete_family_downloads
+
+# =========================================================================
+# 5. TARGET CONTROL
+# =========================================================================
+# One family's samples at a time -- a straight expand(family=FAMILIES,
+# sample=SAMPLES.keys()) would be a full cross product and request
+# targets for samples that don't belong to that family.
+FINAL_TARGETS = [
+    target
+    for fam in FAMILIES
+    for target in expand(
+        "data/05.final_selection/{family}/{sample}/taxonomy_merged.tsv",
+        family=[fam], sample=family_samples(fam),
+    )
+]
+
+# See ENGINEERING_NOTES.md § taxonomy_cleanup: the rule itself already
+# existed, but wasn't reachable from rule all, so its per-sample
+# intermediate-file purge had never actually run.
+PURGE_TARGETS = [
+    target
+    for fam in FAMILIES
+    for target in expand(
+        "data/04.taxonomy/{family}/{sample}/.purged",
+        family=[fam], sample=family_samples(fam),
+    )
+]
+
+# See ENGINEERING_NOTES.md § seqkit_stats: moved from raw reads to the
+# rnaviralSPAdes assembly output, and wired into rule all (previously
+# unreachable).
+STATS_TARGETS = [
+    target
+    for fam in FAMILIES
+    for target in expand(
+        "data/03.assembly_stats/{family}/{sample}/{sample}_stats.txt",
+        family=[fam], sample=family_samples(fam),
+    )
+]
+
+# VirSorter2 used to be pulled into the DAG only as an input of
+# annotate_viral_positives. Now that it is a params path there (so that a
+# VirSorter2 failure cannot block a sample's merge, or MetaCerberus behind it),
+# nothing would request these files and the rule would never run at all. They
+# are therefore explicit targets. Failure here is not fatal to the merges:
+# run_virsorter2 always creates its outputs, --keep-going covers a hard
+# timeout, and annotate writes NA when the score is absent.
+VIRSORTER_TARGETS = [
+    target
+    for fam in FAMILIES
+    for target in expand(
+        "data/03.rnaviralSPAdes/{family}/{sample}/virsorter2/final-viral-score.tsv",
+        family=[fam], sample=family_samples(fam),
+    )
+]
+
+rule all:
+    input:
+        os.path.join(config["databases"]["virsorter2_db"], ".done"),
+        os.path.join(config["databases"]["checkv_db"], ".done"),
+        os.path.join(config["databases"]["rdrp_catch_hmm"], ".done"),
+        FINAL_TARGETS,
+        PURGE_TARGETS,
+        STATS_TARGETS,
+        VIRSORTER_TARGETS,
+        # run_metacerberus's own input chain (metacerberus_input.fasta <-
+        # results/master_viral_database.fasta <- build_master_database <-
+        # every sample's taxonomy_merged.tsv) already enforces "after all
+        # samples' taxonomy finishes" -- see ENGINEERING_NOTES.md §
+        # run_metacerberus.
+        "results/annotation/metacerberus",
+        "results/master_viral_database.fasta",
+        # rules/07.reporting.smk. benchmarks_combined pulls in every
+        # per-library RdRp FASTA, stage counts, escalation fractions and the
+        # candidate table; the ORF export follows MetaCerberus.
+        "results/reporting/benchmarks_combined.tsv",
+        "results/reporting/metacerberus_orfs.faa",
+        # rules/08.ictv.smk: bundles only. ictv_family_comparison is a
+        # scaffold that fails on purpose and stays out of rule all.
+        "results/ictv/families.tsv"
