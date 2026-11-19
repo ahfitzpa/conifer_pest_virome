@@ -1,0 +1,12 @@
+name: phylo_plot
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - matplotlib=3.9
+  - numpy=1.26
+  - pandas=2.2
+  - biopython=1.84
+  - seaborn=0.13

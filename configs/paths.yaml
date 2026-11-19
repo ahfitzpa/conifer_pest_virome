@@ -35,7 +35,17 @@ tools:
   LONGREAD_HOSTREMOVAL_ENV: env_longread_hostremoval.yaml
   LONGREAD_ASSEMBLY_ENV: env_longread_assembly.yaml
   MEDAKA_ENV: env_medaka.yaml
-  
+  # Phase 3 (rules/09-12), per SNAKEFILE_INTEGRATION.md step 2.
+  PHYLO_ENV: env_phylo.yaml
+  PHYLO_PLOT_ENV: env_phylo_plot.yaml
+  GENOME_MAPS_ENV: env_genome_maps.yaml
+  # RECOMB_ENV, not REC_ENV: SNAKEFILE_INTEGRATION.md names it REC_ENV, but
+  # rules/11.recombination.smk calls get_env("RECOMB_ENV") -- following the doc
+  # verbatim raises KeyError: 'RECOMB_ENV' at DAG build.
+  RECOMB_ENV: env_recomb.yaml         # HyPhy 2.5.104
+  OPENRDP_ENV: env_openrdp.yaml       # numpy<2 + openrdp==0.1.0, kept separate
+  DEMARCATION_ENV: env_demarcation.yaml
+
 # Absolute so every rule resolves the same physical databases regardless
 # of which phase2 checkout invokes them (this one, deer_virome's, or any
 # future clone), installed once here rather than duplicated per checkout.

@@ -13,7 +13,12 @@ def deep_update(d, u):
     return d
 
 config = {}
-for f in ["configs/paths.yaml", "configs/phase2_assembly_analysis.yaml"]:
+# configs/phylogenetics.yaml carries the whole `phylogenetics:` block that
+# rules/09-12 read as config["phylogenetics"]. SNAKEFILE_INTEGRATION.md lists
+# the tools entries and the includes but not this load, and without it every
+# Phase 3 rule raises KeyError: 'phylogenetics' at DAG build.
+for f in ["configs/paths.yaml", "configs/phase2_assembly_analysis.yaml",
+          "configs/phylogenetics.yaml"]:
     with open(f) as fh:
         deep_update(config, yaml.safe_load(fh))
 
@@ -82,6 +87,14 @@ include: "rules/05.merge_tax.smk"
 include: "rules/06.annotation.smk"
 include: "rules/07.reporting.smk"
 include: "rules/08.ictv.smk"
+# Phase 3, per SNAKEFILE_INTEGRATION.md step 3. Deliberately NOT added to
+# `rule all`: it is driven by submit_phase3.sh's own targets (phylo_all,
+# genome_map_all, recomb_all, demarcation_all) so a slow IQ-TREE job cannot
+# block the assembly phase.
+include: "rules/09.phylogenetics.smk"
+include: "rules/10.genome_maps.smk"
+include: "rules/11.recombination.smk"
+include: "rules/12.demarcation.smk"
 
 # See ENGINEERING_NOTES.md § Snakefile_phase2 (speed-up plan item 5).
 #

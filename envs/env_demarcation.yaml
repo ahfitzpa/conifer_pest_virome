@@ -1,0 +1,10 @@
+name: demarcation
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas=2.2
+  - biopython=1.84
+  - pyaml
