@@ -1,0 +1,111 @@
+import os
+import yaml
+
+# =========================================================================
+# Phase 3: comparative phylogenetics, genome maps, recombination, ICTV
+# demarcation.
+#
+# A SEPARATE workflow from phase2, not an include of it. The two have
+# different units of analysis -- phase2 is per sample (assembly, taxonomy),
+# phase3 is per viral family -- different runtimes, and different configs,
+# and keeping them apart means a multi-hour IQ-TREE job can never re-enter
+# or invalidate the assembly DAG. Ported from Serratus/workflow/phase3;
+# conifer's phase2 lives at the project root, so PHASE2 defaults to "..".
+#
+# Phase 2 is consumed strictly as finished OUTPUT, read from .. (project root):
+#   results/ictv/families.tsv + families/<fam>/     (ictv_prepare)
+#   results/reporting/candidate_contigs.tsv         (candidate_contig_table)
+#   results/reporting/metacerberus_orfs.faa         (export_metacerberus_orfs)
+#   results/annotation/metacerberus/final/...       (run_metacerberus)
+#   references/ictv_refs*.faa|tsv                   (scripts/fetch_refs*.py)
+# Nothing here writes into phase2; phase3's own outputs land in this
+# directory's results/.
+# =========================================================================
+
+def deep_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, dict) and isinstance(d.get(k), dict):
+            deep_update(d[k], v)
+        else:
+            d[k] = v
+    return d
+
+
+# phase2's paths.yaml supplies the shared `tools:` block (TAX_CORE_ENV and
+# the phase3 *_ENV keys); configs/phylogenetics.yaml is phase3's own.
+PHASE2 = os.environ.get("PHASE2_DIR", "..")
+
+config = {}
+for f in [os.path.join(PHASE2, "configs/paths.yaml"), "configs/phylogenetics.yaml"]:
+    with open(f) as fh:
+        deep_update(config, yaml.safe_load(fh))
+
+# Scratch-backed tmp, not node-local /tmp, for the same reason as phase2.
+TMPDIR = os.path.join(os.getcwd(), "tmp")
+os.makedirs(TMPDIR, exist_ok=True)
+os.environ["TMPDIR"] = TMPDIR
+
+# Directories rules 09-12 expect. In Snakefile_phase2 these come from
+# 07.reporting.smk and 08.ictv.smk; here they are plain constants
+# pointing into phase2's finished results.
+ICTV_DIR = os.path.join(PHASE2, "results/ictv")
+REPORT_DIR = os.path.join(PHASE2, "results/reporting")
+
+
+def get_env(tool_key):
+    """Resolve an env by its `tools:` key: phase3's envs/ first, else phase2's.
+
+    Rules 09-12 use phase3-only envs (PHYLO_ENV, RECOMB_ENV, ...) but also
+    TAX_CORE_ENV, which is phase2's and is shared by both workflows. Falling
+    back rather than copying tax_core.yaml here keeps one definition of the
+    shared environments, so they cannot drift between the two phases.
+    """
+    name = config["tools"][tool_key]
+    local = os.path.join(os.path.dirname(workflow.snakefile), "envs", name)
+    if os.path.exists(local):
+        return workflow.source_path(f"envs/{name}")
+    shared = os.path.join(PHASE2, "envs", name)
+    if os.path.exists(shared):
+        return workflow.source_path(f"{PHASE2}/envs/{name}")
+    raise WorkflowError(
+        f"env for {tool_key} ({name}) not found in phase3/envs or {PHASE2}/envs"
+    )
+
+
+# rules/10.genome_maps.smk reaches back into phase2 for two things that are
+# not config-driven: per-sample coverage, and the master database. Both are
+# supplied here so the rule files stay byte-identical to Serratus phase3's and
+# can be re-synced without re-patching.
+MANIFEST_PATH = os.path.join(PHASE2, config.get("manifest", "data/test_run/manifest.csv"))
+
+
+def get_all_coverage_stats(wildcards):
+    """Per-sample coverage_stats.tsv, read from phase2's data tree."""
+    import csv
+    with open(MANIFEST_PATH) as fh:
+        return [
+            os.path.join(PHASE2, "data/03.rnaviralSPAdes",
+                         r["family"], r["sample_id"], "coverage_stats.tsv")
+            for r in csv.DictReader(fh)
+        ]
+
+
+# Phase 2 writes this; phase3 only reads it. Declared as a constant because
+# 10.genome_maps.smk refers to it by a bare relative path.
+MASTER_DB = os.path.join(PHASE2, "results/master_viral_database.fasta")
+
+include: "rules/09.phylogenetics.smk"
+include: "rules/10.genome_maps.smk"
+include: "rules/11.recombination.smk"
+include: "rules/12.demarcation.smk"
+
+
+# No `rule all`: phase3 is driven by the four stage targets, which
+# submit_phase3.sh runs in order. Requesting them individually is supported
+# and is the quickest way to test one stage.
+rule phase3_all:
+    input:
+        rules.phylo_all.input,
+        rules.genome_map_all.input,
+        rules.recomb_all.input,
+        rules.demarcation_all.input,

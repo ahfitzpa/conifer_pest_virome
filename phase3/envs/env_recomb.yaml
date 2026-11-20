@@ -1,0 +1,13 @@
+name: recomb
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas=2.2
+  - biopython=1.84
+  - pyaml
+  # HyPhy 2.5.104 provides GARD (and the Walrus analysis set in the same
+  # package) for recombination screening.
+  - hyphy=2.5.104

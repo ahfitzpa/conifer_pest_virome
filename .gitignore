@@ -1,8 +1,9 @@
-# Huge data, databases, outputs, and temp dirs
+# Huge data, databases, outputs, and temp dirs.
+# No leading slash, so these also cover phase3/ (its logs/, tmp/, results/,
+# .snakemake/).
 data/
 references/
 results/
-references/
 logs/
 benchmarks/
 tmp/
@@ -12,6 +13,7 @@ tools/
 
 # Reports and backups
 report_phase2.html
+report_phase3.html
 *.bak
 *.bak_*
 

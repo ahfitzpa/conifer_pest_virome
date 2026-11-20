@@ -1,0 +1,12 @@
+name: openrdp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # OpenRDP 0.1.0 requires numpy < 2 and cannot share an environment with the
+  # main numpy-2 stack (same constraint as CaliciTyper's separate venv).
+  - python=3.11
+  - numpy=1.26.4
+  - pip
+  - pip:
+      - openrdp==0.1.0
