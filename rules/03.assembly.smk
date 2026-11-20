@@ -164,9 +164,89 @@ rule filter_contigs:
 # orders this rule after filter_contigs and supplies the `retained` flag.
 # Stats are emitted for EVERY assembled contig, not just retained ones, so the
 # same file serves the stage-count and escalation-fraction reports.
+#
+# BAM source (2026-11-20). submit_phase2.sh's stage 1 ran with
+# `--until run_virsorter2`, which leaves this rule out of that run's DAG, so
+# Snakemake treated filter_contigs as the BAM's last consumer and reclaimed
+# sorted.bam for all 21 samples before coverage was taken. Requesting
+# sorted.bam again would re-run rnaviral_assembly -- and, through
+# filter_contigs, all of taxonomy and VirSorter2 (dry run: 304 jobs). So:
+#   * sorted.bam still exists           -> use it (the normal path)
+#   * filtered_contigs.fasta exists but
+#     sorted.bam is gone                -> remap.bam (remap_for_coverage)
+#   * neither (not yet assembled)       -> sorted.bam
+# remap.bam maps the same reads, cleaned by the same fastp call, to the
+# RETAINED contigs only (contigs.fasta is gone too), so these samples' stats
+# cover retained contigs and their "all assembled contigs" totals in
+# stage_counts/escalation_fractions equal the retained count.
+def get_coverage_bam(wildcards):
+    d = f"data/03.rnaviralSPAdes/{wildcards.family}/{wildcards.sample}"
+    if os.path.exists(f"{d}/sorted.bam"):
+        return f"{d}/sorted.bam"
+    if os.path.exists(f"{d}/filtered_contigs.fasta"):
+        return f"{d}/remap.bam"
+    return f"{d}/sorted.bam"
+
+
+# Cleans the staged raw reads (data/01.reads, still on disk) with exactly
+# fastp_cleaning's call, into a separate temp() path. Not fastp_cleaning's own
+# output: regenerating that file is what makes Snakemake re-run the assembly.
+rule fastp_for_remap:
+    input:
+        unpack(get_fastp_input)
+    output:
+        f1 = temp("data/02.fastp_remap/{family}/{sample}/{sample}_cleaned_1.fastq.gz"),
+        f2 = temp("data/02.fastp_remap/{family}/{sample}/{sample}_cleaned_2.fastq.gz")
+    benchmark:
+        "benchmarks/fastp_for_remap/{family}_{sample}.tsv"
+    params:
+        min_len = 50,
+        overlap = 30
+    threads: 8
+    resources: runtime=180
+    conda: get_env("ASSEMBLY_ENV")
+    shell:
+        """
+        mkdir -p "$(dirname {output.f1})"
+        fastp --in1 {input.fq1} --in2 {input.fq2} \
+            --out1 {output.f1} --out2 {output.f2} \
+            --html /dev/null --json /dev/null \
+            --qualified_quality_phred 20 \
+            --length_required {params.min_len} \
+            --overlap_len_require {params.overlap} \
+            --correction --overlap_diff_percent_limit 2 \
+            -z 1 --thread {threads}
+        """
+
+
+rule remap_for_coverage:
+    input:
+        f1 = "data/02.fastp_remap/{family}/{sample}/{sample}_cleaned_1.fastq.gz",
+        f2 = "data/02.fastp_remap/{family}/{sample}/{sample}_cleaned_2.fastq.gz",
+        contigs = "data/03.rnaviralSPAdes/{family}/{sample}/filtered_contigs.fasta"
+    output:
+        bam = temp("data/03.rnaviralSPAdes/{family}/{sample}/remap.bam")
+    benchmark:
+        "benchmarks/remap_for_coverage/{family}_{sample}.tsv"
+    threads: 16
+    resources: runtime=480
+    # Same env and bwa-mem3/samtools calls as rnaviral_assembly.
+    conda: get_env("RNAVIRAL_ASSEMBLY_ENV")
+    shell:
+        """
+        IDX="$(dirname {output.bam})/remap_idx"
+        trap 'rm -f "$IDX".{{0123,amb,ann,bwt.2bit.64,pac}}' EXIT
+        bwa-mem3 index -p "$IDX" {input.contigs}
+        bwa-mem3 mem -t {threads} --bam=0 "$IDX" \
+            {input.f1} {input.f2} | \
+            samtools view -u -F 4 - | samtools sort -l 1 -m 1G -@ {threads} -o {output.bam}
+        samtools index {output.bam}
+        """
+
+
 rule contig_coverage_stats:
     input:
-        bam = "data/03.rnaviralSPAdes/{family}/{sample}/sorted.bam",
+        bam = get_coverage_bam,
         filtered = "data/03.rnaviralSPAdes/{family}/{sample}/filtered_contigs.fasta"
     output:
         tsv = "data/03.rnaviralSPAdes/{family}/{sample}/coverage_stats.tsv",
@@ -198,6 +278,9 @@ rule contig_coverage_stats:
                 --family {wildcards.family} \
                 --sample {wildcards.sample} \
                 --out {output.tsv}
+        # The BAM is temp() and reclaimed after this rule; its index is not
+        # a declared output, so remove it here.
+        rm -f {input.bam}.bai
         """
 
 
