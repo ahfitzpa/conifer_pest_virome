@@ -35,7 +35,7 @@ tools:
   LONGREAD_HOSTREMOVAL_ENV: env_longread_hostremoval.yaml
   LONGREAD_ASSEMBLY_ENV: env_longread_assembly.yaml
   MEDAKA_ENV: env_medaka.yaml
-  # Phase 3 (rules/09-12), per SNAKEFILE_INTEGRATION.md step 2.
+  # Phase 3 envs: phase3/Snakefile_phase3 reads this tools: block from here.
   PHYLO_ENV: env_phylo.yaml
   PHYLO_PLOT_ENV: env_phylo_plot.yaml
   GENOME_MAPS_ENV: env_genome_maps.yaml
