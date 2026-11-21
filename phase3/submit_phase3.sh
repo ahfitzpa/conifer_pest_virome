@@ -47,15 +47,15 @@ done
 [ "$missing" -eq 0 ] || { echo "[ERROR] Run phase2 to completion first." >&2; exit 1; }
 
 echo "[SLURM INFO] Phase 3: ML phylogenetics + conserved domains + diagnostic residues"
-snakemake -s Snakefile_phase3 $SNAKE_OPTS phylo_all
+snakemake -s Snakefile_phase3 $SNAKE_OPTS -- phylo_all
 
 echo "[SLURM INFO] Phase 3: genome maps"
-snakemake -s Snakefile_phase3 $SNAKE_OPTS genome_map_all
+snakemake -s Snakefile_phase3 $SNAKE_OPTS -- genome_map_all
 
 echo "[SLURM INFO] Phase 3: recombination screening"
-snakemake -s Snakefile_phase3 $SNAKE_OPTS recomb_all
+snakemake -s Snakefile_phase3 $SNAKE_OPTS -- recomb_all
 
 echo "[SLURM INFO] Phase 3: ICTV demarcation tables"
-snakemake -s Snakefile_phase3 $SNAKE_OPTS demarcation_all
+snakemake -s Snakefile_phase3 $SNAKE_OPTS -- demarcation_all
 
 snakemake -s Snakefile_phase3 --report report_phase3.html --jobs 1
