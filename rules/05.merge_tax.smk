@@ -10,9 +10,9 @@ rule collect_viral_positives:
     conda: get_env("TAX_CORE_ENV")
     # Seconds of work, but no longer a localrule (see Snakefile_phase2's
     # localrules comment). A short runtime lets it backfill instead of
-    # queueing behind the 180 min default.
+    # queueing behind the 180 min default. 120: a 30 min job stalled at start-up (2026-11-20).
     threads: 1
-    resources: mem_gb=4, runtime=30
+    resources: mem_gb=4, runtime=120
     input:
         contigs=get_taxonomy_contigs,
         kraken2="data/04.taxonomy/{family}/{sample}/kraken2/kraken2_output.tsv",

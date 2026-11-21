@@ -70,9 +70,8 @@ rule run_genomad:
 rule run_rdrpcatch:
     conda: get_env("TAX_CORE_ENV")
     threads: 8
-    # 120 -> 240: now scans every coverage-filtered contig, not just the
-    # mmseqs orphans it used to get. Not yet sacct-validated.
-    resources: mem_gb=16, runtime=240
+    # 1440: 240 timed out on SRR9898676; Serratus' slowest run took 6.8 h
+    resources: mem_gb=16, runtime=1440
     input:
         contigs=get_taxonomy_contigs,
         db=os.path.join(config["databases"]["rdrp_catch_hmm"], ".done")
