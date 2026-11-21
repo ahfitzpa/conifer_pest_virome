@@ -17,9 +17,11 @@
 #   sorted.bam / .bai   Already declared temp() in rules/03.assembly.smk. These
 #                       are leftovers from runs that predate that annotation,
 #                       which Snakemake will not reclaim retrospectively. Only
-#                       removed where zero_coverage_contigs.txt exists, because
+#                       removed where coverage_stats.tsv exists, because
 #                       contig_coverage_stats is the last consumer of the BAM
-#                       and nothing downstream can recover it.
+#                       and nothing downstream can recover it. (This used to
+#                       check zero_coverage_contigs.txt, which filter_contigs
+#                       writes BEFORE coverage is taken.)
 #   contigs.amb/.ann/   bwa-mem2 index of contigs.fasta. contigs.fasta is itself
 #   .bwt.2bit.64/.pac   temp() and has already been reclaimed, so the index is
 #                       orphaned: it indexes a file that no longer exists.
@@ -29,7 +31,9 @@
 #                       config are kept.
 #
 # It never touches filtered_contigs.fasta or zero_coverage_contigs.txt, which
-# are the actual assembly products.
+# are the actual assembly products. Every candidate is also passed through
+# scripts/retention_guard.py filter-deletions, so nothing listed in
+# configs/retained_outputs.tsv (or a directory holding one) can be removed.
 #
 # SAFETY: refuses to delete anything while any job is running in this working
 # directory, because the Snakemake driver spawns children that write here.
@@ -60,12 +64,14 @@ echo "### no jobs active in $ROOT -- safe to proceed"
 
 # --- survey ----------------------------------------------------------------
 total=0
-declare -a VICTIMS
+# =(): under `set -u`, bash 5.1 treats a declared-but-never-assigned array as
+# unbound, so ${#VICTIMS[@]} crashed the script whenever nothing was cleanable.
+declare -a VICTIMS=()
 for d in "$ASM"/*/*/; do
     [ -d "$d" ] || continue
-    # only clean assemblies whose coverage step finished: that file is produced
-    # by the last consumer of the BAM
-    if [ ! -f "$d/zero_coverage_contigs.txt" ]; then
+    # only clean assemblies whose coverage step finished: coverage_stats.tsv is
+    # produced by the last consumer of the BAM
+    if [ ! -s "$d/coverage_stats.tsv" ]; then
         echo "  SKIP (coverage stats absent, assembly may be incomplete): ${d#$ASM/}"
         continue
     fi
@@ -80,7 +86,23 @@ for d in "$ASM"/*/*/; do
     done
 done
 
-echo "### ${#VICTIMS[@]} items, $((total / 1024 / 1024)) GB"
+# Retention guard: drop anything later analysis reads.
+if [ "${#VICTIMS[@]}" -gt 0 ]; then
+    SAFE_LIST=$(mktemp "${TMPDIR:-/tmp}/conifer_cleanup_safe.XXXXXX")
+    if ! (cd "$ROOT" && printf '%s\0' "${VICTIMS[@]#$ROOT/}" \
+            | python3 -I scripts/retention_guard.py filter-deletions) > "$SAFE_LIST"; then
+        echo "### retention guard failed -- refusing to delete anything"
+        [ -f "$SAFE_LIST" ] && rm -f -- "$SAFE_LIST"
+        exit 1
+    fi
+    SAFE=()
+    mapfile -d '' SAFE < "$SAFE_LIST"
+    [ -f "$SAFE_LIST" ] && rm -f -- "$SAFE_LIST"
+    VICTIMS=()
+    for p in "${SAFE[@]}"; do VICTIMS+=("$ROOT/$p"); done
+fi
+
+echo "### ${#VICTIMS[@]} items, $((total / 1024 / 1024)) GB (size before retention filtering)"
 if [ "${#VICTIMS[@]}" -eq 0 ]; then echo "### nothing to do"; exit 0; fi
 
 if [ "$APPLY" -eq 0 ]; then
@@ -93,6 +115,7 @@ for p in "${VICTIMS[@]}"; do
     rm -rf "$p" && echo "  removed ${p#$ASM/}"
 done
 echo "### reclaimed about $((total / 1024 / 1024)) GB"
+(cd "$ROOT" && python3 -I scripts/retention_guard.py audit)
 echo "### surviving products per assembly:"
 ls "$ASM"/*/*/filtered_contigs.fasta 2>/dev/null | wc -l | sed 's/^/  filtered_contigs.fasta: /'
 ls "$ASM"/*/*/virsorter2/final-viral-score.tsv 2>/dev/null | wc -l | sed 's/^/  virsorter2 final-viral-score.tsv: /'

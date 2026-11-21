@@ -53,7 +53,12 @@ echo "[SLURM INFO] Starting Phase 2: Assembly & Analysis (fanning out across the
 # VirSorter2 cannot do is listed in logs/virsorter2_failures.tsv and simply gets
 # NA in stage 2.
 echo "[SLURM INFO] Stage 1/3: VirSorter2 (best-effort; failures are logged, not fatal)"
-snakemake -s Snakefile_phase2 $SNAKE_OPTS --until run_virsorter2 || true
+# --notemp: contig_coverage_stats is outside this partial run, so without it
+# Snakemake reclaims each sorted.bam once filter_contigs is done -- which is
+# how all 21 BAMs were lost before coverage in run 1173405 (2026-11).
+# Stage 2 runs without it and reclaims temp files once every consumer is
+# done. rules/99.retention.smk refuses an --until run without --notemp.
+snakemake -s Snakefile_phase2 $SNAKE_OPTS --notemp --until run_virsorter2 || true
 
 echo "[SLURM INFO] Stage 2/3: full workflow"
 snakemake -s Snakefile_phase2 $SNAKE_OPTS || true

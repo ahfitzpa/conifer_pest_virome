@@ -182,3 +182,5 @@ rule all:
         # rules/08.ictv.smk: bundles only. ictv_family_comparison is a
         # scaffold that fails on purpose and stays out of rule all.
         "results/ictv/families.tsv"
+# Must stay the LAST include: checks every rule defined above (see the file).
+include: "rules/99.retention.smk"
