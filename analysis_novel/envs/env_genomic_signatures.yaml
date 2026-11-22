@@ -1,0 +1,19 @@
+name: analysis_novel_genomic_signatures
+# Scenario 4, genomic signatures / adaptive evolution, which runs INSIDE the
+# novel pathway (draft 26.genomic_signatures_adaptive.py -> rules/14).
+# hyphy is the one scenario that needs it: FUBAR (pervasive) + MEME (episodic).
+#
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - biopython=1.85
+  - pandas=2.2.3
+  - numpy=2.1.3
+  - scipy=1.14.1
+  - matplotlib-base=3.9.2
+  - hyphy=2.5.65         # FUBAR + MEME site-level selection
+  - paml=4.10.7          # codeml cross-check
+  - prodigal=2.6.3
+  - seqkit=2.9.0

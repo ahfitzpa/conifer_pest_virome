@@ -213,3 +213,52 @@ rule combined_benchmarks:
             --benchmark-dir benchmarks \
             --out {output.tsv}
         """
+
+
+# Contig confidence: the last step of phase2, so that nothing downstream reads a
+# contig that the annotation says is host genome.
+#
+# Taxonomy alone retains eukaryotic material -- a 14.7 kb contig here encodes
+# titin, others collagen, dynein and laminin. MetaCerberus settles it, but not by
+# presence: it reports a best hit from every database for every ORF, so every
+# annotated contig has PHROG and VOG hits. The script compares the best cellular
+# (KOFam) score against the best viral (PHROG/VOG) score per ORF, and an
+# extracted RdRp makes a contig high confidence outright.
+rule contig_confidence:
+    input:
+        annotation = "results/annotation/metacerberus",
+        taxonomy = "results/taxonomy/master_metadata.csv",
+        rdrp = get_all_rdrp_domains,
+    output:
+        table = "results/reporting/contig_confidence.tsv",
+        keep = "results/reporting/contigs_keep.txt",
+        summary = "results/reporting/contig_confidence_summary.tsv",
+    log:
+        "logs/contig_confidence.log",
+    params:
+        keep_levels = config.get("contig_confidence", {}).get("keep", "high,medium"),
+        score_ratio = config.get("contig_confidence", {}).get("score_ratio", 1.5),
+        min_viral_frac = config.get("contig_confidence", {}).get("min_viral_frac", 0.5),
+        min_tools = config.get("contig_confidence", {}).get("min_tools", 2),
+    conda: get_env("TAX_CORE_ENV")
+    threads: 1
+    resources: mem_gb=16, runtime=120
+    shell:
+        """
+        ANNOT=$(ls -d {input.annotation}/final/annotations-* 2>/dev/null | head -1)
+        if [ -z "$ANNOT" ]; then
+            echo "no MetaCerberus annotation directory under {input.annotation}" >&2
+            exit 1
+        fi
+        python3 -I scripts/filter_contigs_by_annotation.py \
+            --annotation-dir "$ANNOT" \
+            --taxonomy {input.taxonomy} \
+            --rdrp "data/06.rdrp/*/*/*_rdrp_domains.tsv" \
+            --out-tsv {output.table} \
+            --out-keep {output.keep} \
+            --out-summary {output.summary} \
+            --score-ratio {params.score_ratio} \
+            --min-viral-frac {params.min_viral_frac} \
+            --min-tools {params.min_tools} \
+            --keep "{params.keep_levels}" > {log} 2>&1
+        """

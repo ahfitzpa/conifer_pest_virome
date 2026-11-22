@@ -1,0 +1,13 @@
+name: common_phylogeny
+# Toolchain for common/rules/phylogeny.smk: FAMSA -> ClipKIT -> IQ-TREE2.
+# Shared, because every analysis pathway trees its own manifest with these.
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - biopython=1.85
+  - famsa=2.2.2
+  - clipkit=2.3.0
+  - iqtree=2.3.6
+  - seqkit=2.9.0

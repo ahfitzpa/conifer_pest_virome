@@ -1,0 +1,14 @@
+name: common_orf_tools
+# Rule 13 (codon alignments) is shared by every pathway, so its tools must be in
+# a shared env: Prodigal for ORF prediction and MAFFT for the protein alignment
+# the codon threading is built on. env_phylogeny.yaml deliberately has no mafft
+# (it aligns whole genomes with FAMSA), which is why this is separate.
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - biopython=1.85
+  - prodigal=2.6.3
+  - mafft=7.526
+  - seqkit=2.9.0

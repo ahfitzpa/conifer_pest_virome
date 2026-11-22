@@ -1,0 +1,23 @@
+# analysis_novel: the novel manifest's post-assembly analysis.
+# Loaded after common/configs/phylogeny.yaml, so anything set here overrides
+# the shared defaults.
+
+novel:
+  families:
+    - Hepeviridae
+
+# Envs resolved by get_env(): this pathway's envs/, then common/envs, then phase2.
+tools:
+  COMMON_SEQTOOLS_ENV: common_seqtools.yaml
+  ORF_TOOLS_ENV: env_orf_tools.yaml
+  SCENARIO_PHYLO_ENV: env_phylogeny.yaml
+  GENOMIC_SIGNATURES_ENV: env_genomic_signatures.yaml
+
+phylogeny:
+  # Hepeviridae genomes are ~7.2 kb; the cap keeps host sequence and
+  # misassemblies out of the alignment (a 96 kb contig was selected before it
+  # existed). min_taxa is 3 so the 3-run test manifest is usable with the
+  # reference set supplying the rest of the tree.
+  min_length: 1000
+  max_length: 12000
+  min_taxa: 3

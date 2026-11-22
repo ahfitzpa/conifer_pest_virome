@@ -1,0 +1,21 @@
+# Shared phylogeny knobs (common/rules/phylogeny.smk). A pathway overrides any
+# of these in its own config.
+phylogeny:
+  min_length: 1000
+  max_length: 0          # 0 = no cap; set per family to drop host/misassembly contigs
+  agreement: "agree,single_tool"
+  max_per_sample: 1
+  max_taxa: 0
+  min_taxa: 4
+  min_sites: 300
+  famsa_extra: "-medoidtree -gt nj"
+  clipkit_mode: "smart-gap"
+  model: "MFP"
+  ufboot: 1000
+  alrt: 1000
+  iqtree_extra: ""
+  # family -> reference FASTA. Relative paths resolve against workflow/common.
+  # Candidates alone cannot be treed: 3 test runs give 3 taxa, and 3 sequences
+  # have one unrooted topology, so support values would be meaningless.
+  references:
+    Hepeviridae: "references/Hepeviridae_refs.fasta"

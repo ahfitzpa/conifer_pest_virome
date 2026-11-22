@@ -1,0 +1,10 @@
+name: common_seqtools
+# Shared by common/scripts: fetch_biosample_metadata.py (stdlib only) and
+# codon_alignment.py (Biopython). Deliberately tiny so every pathway can use it.
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - biopython=1.85
+  - seqkit=2.9.0
