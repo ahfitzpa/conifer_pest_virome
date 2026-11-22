@@ -233,9 +233,16 @@ rule contig_confidence:
         table = "results/reporting/contig_confidence.tsv",
         keep = "results/reporting/contigs_keep.txt",
         summary = "results/reporting/contig_confidence_summary.tsv",
+        families = "results/reporting/analysis_families.yaml",
     log:
         "logs/contig_confidence.log",
     params:
+        # Serratus keeps the shared scripts in workflow/common; conifer keeps
+        # them beside its own. Resolve rather than duplicate the file.
+        script = next((c for c in ("scripts/filter_contigs_by_annotation.py",
+                                   "../common/scripts/filter_contigs_by_annotation.py")
+                       if os.path.exists(c)),
+                      "scripts/filter_contigs_by_annotation.py"),
         keep_levels = config.get("contig_confidence", {}).get("keep", "high,medium"),
         score_ratio = config.get("contig_confidence", {}).get("score_ratio", 1.5),
         min_viral_frac = config.get("contig_confidence", {}).get("min_viral_frac", 0.5),
@@ -250,13 +257,14 @@ rule contig_confidence:
             echo "no MetaCerberus annotation directory under {input.annotation}" >&2
             exit 1
         fi
-        python3 -I scripts/filter_contigs_by_annotation.py \
+        python3 -I {params.script} \
             --annotation-dir "$ANNOT" \
             --taxonomy {input.taxonomy} \
             --rdrp "data/06.rdrp/*/*/*_rdrp_domains.tsv" \
             --out-tsv {output.table} \
             --out-keep {output.keep} \
             --out-summary {output.summary} \
+            --out-families-yaml {output.families} \
             --score-ratio {params.score_ratio} \
             --min-viral-frac {params.min_viral_frac} \
             --min-tools {params.min_tools} \
