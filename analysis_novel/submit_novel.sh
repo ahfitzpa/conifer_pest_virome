@@ -23,7 +23,13 @@ export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 conda deactivate 2>/dev/null || true
 
-PHASE2="${PHASE2_DIR:-../phase2}"
+if [ -n "${PHASE2_DIR:-}" ]; then
+    PHASE2="$PHASE2_DIR"
+elif [ -f "../configs/paths.yaml" ]; then
+    PHASE2=".."
+else
+    PHASE2="../phase2"
+fi
 for f in "$PHASE2/results/master_viral_database.fasta" \
          "$PHASE2/results/taxonomy/master_metadata.csv"; do
     [ -e "$f" ] || { echo "[ERROR] phase2 prerequisite missing: $f" >&2; exit 1; }
