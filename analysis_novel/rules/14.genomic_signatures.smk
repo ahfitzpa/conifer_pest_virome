@@ -150,9 +150,41 @@ rule composition_signatures:
         """
 
 
+rule plot_signatures:
+    # 6: per-family figure -- selection along the ORF, counts per category, and
+    # dinucleotide composition with GpC as the artefact control. House style
+    # (Okabe-Ito, pdf+svg+png) follows project_maureen/scripts/06_*.py.
+    input:
+        sites=SIG_DIR + "/{fam}/site_selection.tsv",
+        summary=SIG_DIR + "/{fam}/selection_summary.tsv",
+        dinuc=SIG_DIR + "/{fam}/dinucleotide_odds.tsv",
+        rscu=SIG_DIR + "/{fam}/rscu.tsv",
+    output:
+        png="figures/signatures_{fam}.png",
+        svg="figures/signatures_{fam}.svg",
+        pdf="figures/signatures_{fam}.pdf",
+    log:
+        SIG_DIR + "/{fam}/logs/plot_signatures.log",
+    params:
+        script=os.path.join(COMMON, "scripts/plot_signatures.py"),
+    conda:
+        get_env("PHYLO_PLOT_ENV")
+    threads: 1
+    resources:
+        mem_gb=8,
+        runtime=60,
+    shell:
+        """
+        python3 -I {params.script} \
+            --sites {input.sites} --summary {input.summary} \
+            --dinucleotide {input.dinuc} --rscu {input.rscu} \
+            --family {wildcards.fam} --fig-dir figures > {log} 2>&1
+        """
+
 rule signatures_all:
     input:
         expand(SIG_DIR + "/{fam}/site_selection.tsv", fam=FAMILIES),
         expand(SIG_DIR + "/{fam}/selection_summary.tsv", fam=FAMILIES),
         expand(SIG_DIR + "/{fam}/rscu.tsv", fam=FAMILIES),
         expand(SIG_DIR + "/{fam}/dinucleotide_odds.tsv", fam=FAMILIES),
+        expand("figures/signatures_{fam}.png", fam=FAMILIES),
