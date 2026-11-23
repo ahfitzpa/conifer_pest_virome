@@ -82,12 +82,36 @@ def load_lineage(path: str = LINEAGE_TSV) -> dict[str, dict[str, str]]:
     return table
 
 
+# RdRpCATCH names a call after the profile that hit, and some profile names are
+# not taxa: "Narnaviridae_cropped", "Weivirus_cropped", "o.0035",
+# "o.0025.base-Sobeli", "AAB01579.1". A trailing _cropped is a trimmed profile
+# of a real taxon and is stripped; the rest resolve to nothing and must never
+# become a consensus_family, or the analysis grows a directory per artefact.
+_PROFILE_SUFFIXES = ("_cropped", "-cropped")
+
+
+def normalise(name: str) -> str:
+    n = (name or "").strip()
+    for suf in _PROFILE_SUFFIXES:
+        if n.lower().endswith(suf):
+            n = n[: -len(suf)]
+            break
+    return n
+
+
+def is_taxon(name: str, table=None) -> bool:
+    """True when the name is in the ICTV lineage table at a rank we compare on."""
+    table = load_lineage() if table is None else table
+    return normalise(name).lower() in table
+
+
 def _depth(name: str, table) -> int:
-    return RANK_DEPTH.get(table.get(name.lower(), {}).get("rank", ""), -1)
+    return RANK_DEPTH.get(table.get(normalise(name).lower(), {}).get("rank", ""), -1)
 
 
 def _is_ancestor(ancestor: str, descendant: str, table) -> bool:
     """True when `ancestor` is one of `descendant`'s higher-rank lineage names."""
+    ancestor, descendant = normalise(ancestor), normalise(descendant)
     rec = table.get(descendant.lower())
     if not rec:
         return False
@@ -99,6 +123,7 @@ def _is_ancestor(ancestor: str, descendant: str, table) -> bool:
 
 def _compatible(a: str, b: str, table) -> bool:
     """Same taxon at a different rank, or a superseded name and its successor."""
+    a, b = normalise(a), normalise(b)
     if a.lower() == b.lower():
         return True
     if _is_ancestor(a, b, table) or _is_ancestor(b, a, table):
@@ -139,8 +164,12 @@ def reconcile(fams: dict[str, str], tool_priority, rdrp_tool: str = "rdrpcatch",
 
     # 2: genuine disagreement -- RdRpCATCH decides for RNA viruses, because its
     # call comes from the RdRp, the family-level marker
-    rdrp_call = calls.get(rdrp_tool, "").strip()
-    if rdrp_call:
+    # RdRpCATCH only arbitrates with a call that is actually an ICTV taxon --
+    # a profile artefact like o.0035 or Weivirus_cropped must not become a
+    # family name. The normalised form is returned, so Narnaviridae_cropped
+    # resolves to Narnaviridae.
+    rdrp_call = normalise(calls.get(rdrp_tool, ""))
+    if rdrp_call and rdrp_call.lower() in table:
         return rdrp_call, "rdrp_resolved", note
 
     # 3: no RdRp call to arbitrate: keep the old majority/priority winner
