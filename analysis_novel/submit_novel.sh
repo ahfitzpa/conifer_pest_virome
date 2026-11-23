@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=novel_analysis
+#SBATCH --job-name=conifer_novel
 #SBATCH --output=logs/novel_%j.log
 #SBATCH --error=logs/novel_%j.err
 #SBATCH --ntasks=1
@@ -21,7 +21,6 @@ export SNAKEMAKE_CONDA_FRONTEND=conda
 export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
 export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
-conda deactivate 2>/dev/null || true
 
 if [ -n "${PHASE2_DIR:-}" ]; then
     PHASE2="$PHASE2_DIR"

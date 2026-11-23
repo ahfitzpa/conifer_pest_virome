@@ -7,8 +7,12 @@ phylogenetics:
 # with its own working directory, so these are relative to conifer_pest_virome/phase3.
   # ICTV reference proteins, produced from VMR MSL41.v1. Headers carry
   # |<family>| so the prepare script can select exemplars per family.
-  ictv_proteins: "../references/ictv_refs.faa"
-  ictv_metadata: "../references/ictv_refs_meta.tsv"
+  # Built by submit_fetch_refs.sh for every family this pathway analyses.
+  # The previous ictv_refs.faa held only Chuviridae and Dicistroviridae,
+  # hardcoded in the old fetch_refs.py, so almost every family was treed
+  # with no references and demarcation had nothing to compare against.
+  ictv_proteins: "../references/ictv_refs_all.faa"
+  ictv_metadata: "../references/ictv_refs_all_meta.tsv"
   vmr_release: "MSL41.v1"
 
   # Candidate ORF proteins from MetaCerberus (rule export_metacerberus_orfs).

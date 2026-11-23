@@ -1,3 +1,4 @@
+import csv
 import os
 import yaml
 
@@ -106,6 +107,63 @@ if not FAMILIES:
 print(f"[families] analysing {len(FAMILIES)}: "
       + ", ".join(FAMILIES[:6]) + (" ..." if len(FAMILIES) > 6 else ""))
 SCENARIO_PHYLO_DIR = "results/phylogeny"
+
+# Rules 09-12 fan out over config["phylogenetics"]["families"], NOT over
+# FAMILIES, so a pathway naming its families in novel.families was ignored by
+# them: Serratus asked for Hepeviridae alone and rule 09 still queued every
+# family in phase2's ICTV index. Make the pathway's list authoritative there
+# too, so one setting governs the whole pathway.
+config.setdefault("phylogenetics", {})["families"] = list(FAMILIES)
+
+# Rule 09 is a phylogeny of the RdRp/L marker protein, and rule 12 measures
+# demarcation distances on its alignment, so both are meaningful only for
+# families that have an RdRp. The DNA viruses and phages in this list have
+# none, their bundle's rdrp_domains.faa is empty, and MAFFT exits non-zero on
+# an empty input -- that is the 36 phylo_align failures of 2026-11-22. Rules 10
+# and 11 (genome maps, recombination) are nucleotide analyses and keep the full
+# list. An empty n_rdrp_domains column, or a missing index, falls back to every
+# family rather than silently analysing nothing.
+_ictv_index = os.path.join(PHASE2, "results/ictv/families.tsv")
+_rdrp_families = set()
+if os.path.exists(_ictv_index):
+    with open(_ictv_index) as fh:
+        for _row in csv.DictReader(fh, delimiter="\t"):
+            try:
+                if int(_row.get("n_rdrp_domains") or 0) > 0:
+                    _rdrp_families.add((_row.get("assigned_family") or "").strip())
+            except ValueError:
+                continue
+MARKER_FAMILIES = ([f for f in FAMILIES if f in _rdrp_families]
+                   if _rdrp_families else list(FAMILIES))
+print(f"[families] rdrp-marker subset (rules 09, 12): {len(MARKER_FAMILIES)}"
+      + (f" -- {len(FAMILIES) - len(MARKER_FAMILIES)} family/families have no "
+         "RdRp domain and are skipped" if len(MARKER_FAMILIES) < len(FAMILIES)
+         else ""))
+
+# Per-family ICTV genome sets for the shared nucleotide phylogeny, discovered
+# rather than listed: submit_fetch_refs.sh writes references/nt/<Family>_refs.fasta,
+# and hand-maintaining a 37-entry mapping would drift from it. Only Hepeviridae
+# was ever configured, so every other family was treed with no reference at
+# all -- which is also why 11 of them fell under min_taxa. An explicit entry in
+# the config still wins, so a curated set overrides the fetched one.
+# The reference tree sits beside the pathway in conifer and under phase2 in
+# Serratus (where conifer's references/ is in fact a symlink to it), so the
+# directory is searched rather than assumed.
+_here = os.path.dirname(workflow.snakefile)
+_nt_refs = config.setdefault("phylogeny", {}).setdefault("references", {})
+for _dir in (os.path.join(_here, "..", "references", "nt"),
+             os.path.join(PHASE2, "references", "nt"),
+             os.path.join(COMMON, "references", "nt")):
+    if not os.path.isdir(_dir):
+        continue
+    for _fam in FAMILIES:
+        if _fam in _nt_refs:
+            continue
+        _cand = os.path.join(_dir, f"{_fam}_refs.fasta")
+        if os.path.exists(_cand) and os.path.getsize(_cand) > 0:
+            _nt_refs[_fam] = os.path.abspath(_cand)
+print(f"[families] nucleotide reference sets: "
+      f"{sum(1 for f in FAMILIES if f in _nt_refs)}/{len(FAMILIES)}")
 
 
 def get_env(tool_key):

@@ -54,4 +54,4 @@ rule demarcation_table:
 rule demarcation_all:
     input:
         tables = lambda wc: expand(DM_DIR + "/{fam}/demarcation.tsv",
-                                   fam=get_family_list(wc))
+                                   fam=get_marker_family_list(wc))

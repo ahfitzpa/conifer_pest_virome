@@ -47,11 +47,25 @@ def get_family_list(wildcards):
         for line in fh:
             if line.startswith("#") or not line.strip():
                 continue
-            families.append(line.split("\t")[0])
+            fam = line.split("\t")[0].strip()
+            if fam in ("assigned_family", "family", ""):
+                continue
+            families.append(fam)
     wanted = PCFG.get("families", [])
     if wanted:
         families = [f for f in families if f in wanted]
     return families
+
+
+def get_marker_family_list(wildcards):
+    """Families this pathway analyses that actually have an RdRp/L marker.
+
+    The Snakefile sets MARKER_FAMILIES; without it (a pathway including this
+    file on its own) every analysed family is used, as before.
+    """
+    families = get_family_list(wildcards)
+    marker = set(globals().get("MARKER_FAMILIES") or families)
+    return [f for f in families if f in marker]
 
 
 def get_concat_families(wildcards):
@@ -296,9 +310,9 @@ rule diagnostic_plot:
         aln = PHYLO_DIR + "/families/{fam}/aln.faa",
         meta = PHYLO_DIR + "/families/{fam}/taxa_metadata.tsv"
     output:
-        pdf = "figures/diagnostic_{fam}.pdf",
-        svg = "figures/diagnostic_{fam}.svg",
-        png = "figures/diagnostic_{fam}.png"
+        pdf = "figures/{fam}/diagnostic_{fam}.pdf",
+        svg = "figures/{fam}/diagnostic_{fam}.svg",
+        png = "figures/{fam}/diagnostic_{fam}.png"
     params:
         config = PHYLO_CONFIG_FILE
     benchmark:
@@ -308,7 +322,7 @@ rule diagnostic_plot:
     conda: get_env("PHYLO_PLOT_ENV")
     shell:
         """
-        mkdir -p figures
+        mkdir -p figures/{wildcards.fam}
         python scripts/plot_diagnostic_matrix.py \
             --matrix {input.matrix} \
             --conservation {input.conservation} \
@@ -326,12 +340,12 @@ rule diagnostic_plot:
 rule phylo_all:
     input:
         trees = lambda wc: expand(PHYLO_DIR + "/families/{fam}/tree.newick",
-                                  fam=get_family_list(wc)),
+                                  fam=get_marker_family_list(wc)),
         summaries = lambda wc: expand(PHYLO_DIR + "/families/{fam}/phylo_summary.tsv",
-                                      fam=get_family_list(wc)),
+                                      fam=get_marker_family_list(wc)),
         concat_trees = lambda wc: expand(PHYLO_DIR + "/families/{fam}/concat.tree.newick",
                                          fam=get_concat_families(wc)),
         matrices = lambda wc: expand(PHYLO_DIR + "/families/{fam}/diagnostic_residues.tsv",
-                                     fam=get_family_list(wc)),
-        plots = lambda wc: expand("figures/diagnostic_{fam}.png",
-                                  fam=get_family_list(wc))
+                                     fam=get_marker_family_list(wc)),
+        plots = lambda wc: expand("figures/{fam}/diagnostic_{fam}.png",
+                                  fam=get_marker_family_list(wc))

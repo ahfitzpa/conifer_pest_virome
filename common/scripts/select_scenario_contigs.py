@@ -276,8 +276,19 @@ def main() -> int:
             f"median {lengths[len(lengths)//2]}, max {lengths[-1]}")
     log(f"[select] {n_cand} candidate + {len(rows) - n_cand} reference "
         f"= {len(rows)} taxa -> {args.out_fasta}")
-    if n_cand < args.min_taxa:
-        log(f"[select] only {n_cand} candidate(s); need {args.min_taxa} for a tree")
+    # 8: the floor is on TOTAL taxa, not candidates. min_taxa exists because a
+    # 3-taxon unrooted tree has a single topology, so its support values mean
+    # nothing -- that is a property of the alignment, and an ICTV reference
+    # counts towards it exactly as a candidate does. Counting candidates alone
+    # refused a tree for families that 2-3 candidates plus a dozen references
+    # would have placed perfectly well. At least one candidate is still
+    # required: a tree of references only says nothing about this dataset.
+    if not n_cand:
+        log(f"[select] no candidate contig for {args.family}")
+        return 1
+    if len(rows) < args.min_taxa:
+        log(f"[select] only {len(rows)} taxa ({n_cand} candidate + "
+            f"{len(rows) - n_cand} reference); need {args.min_taxa} for a tree")
         return 1
     return 0
 
