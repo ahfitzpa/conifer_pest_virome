@@ -23,6 +23,8 @@ from collections import Counter, defaultdict
 import pandas as pd
 from Bio import SeqIO
 
+import family_taxonomy
+
 TOOL_PRIORITY = ["genomad", "rdrpcatch", "kraken2"]
 
 
@@ -158,19 +160,16 @@ def parse_rdrpcatch(tsv):
 # collect / annotate
 # --------------------------------------------------------------------------
 def consensus(row):
+    """consensus_family, family_agreement, family_disagreement.
+
+    Delegated to family_taxonomy.reconcile: comparing the names as plain
+    strings called Flaviviridae vs Amarillovirales a conflict and dropped the
+    contig, when the two are the same taxon at different ranks. See that
+    module for the statuses.
+    """
     fams = {t: row.get(f"{t}_family", "") for t in TOOL_PRIORITY}
     fams = {t: f for t, f in fams.items() if isinstance(f, str) and f}
-    if not fams:
-        return "", "unresolved"
-    counts = Counter(fams.values())
-    top = max(counts.values())
-    leaders = {f for f, c in counts.items() if c == top}
-    winner = next(fams[t] for t in TOOL_PRIORITY if fams.get(t) in leaders)
-    if len(counts) == 1:
-        status = "agree" if len(fams) > 1 else "single_tool"
-    else:
-        status = "conflict"
-    return winner, status
+    return family_taxonomy.reconcile(fams, TOOL_PRIORITY)
 
 
 def collect(args):
@@ -187,6 +186,7 @@ def collect(args):
 
     columns = [
         "contig_id", "detected_by", "n_tools", "consensus_family", "family_agreement",
+        "family_disagreement",
         "genomad_seq_name", "genomad_score", "genomad_n_hallmarks", "genomad_lineage", "genomad_family",
         "rdrpcatch_profile", "rdrpcatch_db", "rdrpcatch_evalue", "rdrpcatch_family",
         "kraken2_taxid", "kraken2_lineage", "kraken2_family",
@@ -196,7 +196,8 @@ def collect(args):
         tools = [t for t in TOOL_PRIORITY if t in fields["_tools"]]
         row = {k: v for k, v in fields.items() if k != "_tools"}
         row.update({"contig_id": contig, "detected_by": ",".join(tools), "n_tools": len(tools)})
-        row["consensus_family"], row["family_agreement"] = consensus(row)
+        (row["consensus_family"], row["family_agreement"],
+         row["family_disagreement"]) = consensus(row)
         rows.append(row)
     df = pd.DataFrame(rows, columns=columns).sort_values(["n_tools", "contig_id"], ascending=[False, True])
     df.to_csv(args.out_tsv, sep="\t", index=False)

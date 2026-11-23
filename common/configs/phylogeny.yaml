@@ -3,7 +3,10 @@
 phylogeny:
   min_length: 1000
   max_length: 0          # 0 = no cap; set per family to drop host/misassembly contigs
-  agreement: "agree,single_tool"
+  # agree_rank: one taxon named at two ranks (Flaviviridae/Amarillovirales).
+  # rdrp_resolved: sister-family disagreement settled by RdRpCATCH, which
+  # calls from the RdRp itself. Both were "conflict" and silently dropped.
+  agreement: "agree,agree_rank,rdrp_resolved,single_tool"
   max_per_sample: 1
   max_taxa: 0
   min_taxa: 4

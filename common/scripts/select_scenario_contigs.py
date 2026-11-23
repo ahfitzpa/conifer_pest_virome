@@ -23,7 +23,12 @@ import re
 import sys
 
 NULL = {"", "nan", "na", "none", "null", "n/a", "-"}
-AGREEMENT_RANK = {"agree": 0, "single_tool": 1, "conflict": 2}
+# Ranked best first, for choosing between contigs within one run. agree_rank is
+# as good as agree (the callers named one taxon at two ranks); rdrp_resolved is
+# a real disagreement settled by the RdRp, so it outranks a lone caller but not
+# a true consensus. See scripts/family_taxonomy.py.
+AGREEMENT_RANK = {"agree": 0, "agree_rank": 1, "rdrp_resolved": 2,
+                  "single_tool": 3, "conflict": 4}
 HEADER_FIELDS = ["run_id", "family", "bioproject", "family_context",
                  "detected_by", "host", "contig_name"]
 TABLE_COLUMNS = ["label", "run_id", "contig_name", "length", "consensus_family",
@@ -148,7 +153,8 @@ def main() -> int:
     p.add_argument("--max-length", type=int, default=0,
                    help="0 = no cap; set it to exclude host/misassembly contigs "
                         "far above the expected genome size")
-    p.add_argument("--agreement", default="agree,single_tool",
+    p.add_argument("--agreement",
+                   default="agree,agree_rank,rdrp_resolved,single_tool",
                    help="family_agreement values accepted; 'conflict' is excluded "
                         "by default")
     p.add_argument("--max-per-sample", type=int, default=1,

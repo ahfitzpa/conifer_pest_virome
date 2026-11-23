@@ -59,7 +59,8 @@ OUT_COLS = [
     "coverage_breadth", "coverage_evenness", "mapped_reads",
     "checkv_quality", "checkv_completeness", "checkv_contamination",
     "checkv_viral_genes", "checkv_host_genes",
-    "assigned_family", "family_agreement", "detected_by", "n_tools",
+    "assigned_family", "family_agreement", "family_disagreement",
+    "detected_by", "n_tools",
     "genomad_family", "kraken2_family", "kraken2_taxid", "rdrpcatch_family",
     "nearest_reference_type", "nearest_reference_accession",
     "nearest_reference_protein", "nearest_reference_db",
@@ -103,7 +104,7 @@ METRIC_DEFS = [
     ("assigned_family", "Majority-vote virus family across the three taxonomy "
      "tools (consensus_family)", "taxon name", "n/a", "n/a",
      "merge_taxonomy_calls.py"),
-    ("family_agreement", "agree | single_tool | unresolved | conflict",
+    ("family_agreement", "agree | agree_rank | rdrp_resolved | single_tool | unresolved | conflict",
      "category", "n/a", "n/a", "merge_taxonomy_calls.py"),
     (SIM_NAME, "HMMER bitscore divided by profile length for the best-scoring "
      "RdRp profile hit on the contig", SIM_UNITS, "0 to ~3.43",
@@ -241,6 +242,7 @@ def main() -> int:
                 "checkv_host_genes": rec.get("checkv_host_genes", ""),
                 "assigned_family": rec.get("consensus_family", ""),
                 "family_agreement": rec.get("family_agreement", ""),
+                "family_disagreement": rec.get("family_disagreement", ""),
                 "detected_by": rec.get("detected_by", ""),
                 "n_tools": rec.get("n_tools", ""),
                 "genomad_family": rec.get("genomad_family", ""),

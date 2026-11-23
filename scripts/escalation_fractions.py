@@ -25,7 +25,10 @@ import os
 import sys
 
 AMBIGUOUS_AGREEMENT = {"single_tool", "unresolved", "conflict"}
-CONFIDENT_AGREEMENT = {"agree"}
+# agree_rank is one taxon at two ranks, so it is as confident as agree.
+# rdrp_resolved is a disagreement the RdRp settled: counted confident, and
+# auditable through the family_disagreement column.
+CONFIDENT_AGREEMENT = {"agree", "agree_rank", "rdrp_resolved"}
 
 
 def read_retained(path: str) -> int:
