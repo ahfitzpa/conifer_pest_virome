@@ -23,7 +23,7 @@ rule demarcation_distances:
     conda: get_env("DEMARCATION_ENV")
     shell:
         """
-        python scripts/demarcation_distances.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/demarcation_distances.py \
             --alignment {input.aln} --metadata {input.meta} \
             --out {output.pairwise}
         """
@@ -44,7 +44,7 @@ rule demarcation_table:
     conda: get_env("DEMARCATION_ENV")
     shell:
         """
-        python scripts/ictv_demarcation.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/ictv_demarcation.py \
             --family {wildcards.fam} \
             --pairwise {input.pairwise} --metadata {input.meta} \
             --config {params.config} --out {output.table}

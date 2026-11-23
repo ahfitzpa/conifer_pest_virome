@@ -94,7 +94,7 @@ rule phylo_prepare:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/phylo_prepare.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/phylo_prepare.py \
             --family {wildcards.fam} \
             --rdrp-faa {input.rdrp} \
             --ictv-faa {input.ictv_faa} \
@@ -154,7 +154,7 @@ rule phylo_tree:
             --prefix {params.prefix} > {output.log} 2>&1
         cp {params.prefix}.treefile {output.tree}
         cp {params.prefix}.iqtree {output.iqtree}
-        python scripts/phylo_support.py --iqtree {output.iqtree} --out {output.support}
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/phylo_support.py --iqtree {output.iqtree} --out {output.support}
         """
 
 
@@ -176,7 +176,7 @@ rule phylo_summary:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/phylo_summary.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/phylo_summary.py \
             --family {wildcards.fam} \
             --tree {input.tree} \
             --support {input.support} \
@@ -211,7 +211,7 @@ rule concat_prepare:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/concat_domains.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/concat_domains.py \
             --family {wildcards.fam} \
             --orf-faa {input.orfs} \
             --orf-annotation {input.orf_annotation} \
@@ -294,7 +294,7 @@ rule diagnostic_table:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/diagnostic_residues.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/diagnostic_residues.py \
             --alignment {input.aln} \
             --metadata {input.meta} \
             --config {params.config} \
@@ -323,7 +323,7 @@ rule diagnostic_plot:
     shell:
         """
         mkdir -p figures/{wildcards.fam}
-        python scripts/plot_diagnostic_matrix.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/plot_diagnostic_matrix.py \
             --matrix {input.matrix} \
             --conservation {input.conservation} \
             --alignment {input.aln} \

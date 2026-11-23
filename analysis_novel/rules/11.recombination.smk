@@ -28,7 +28,7 @@ rule recomb_prepare:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/recomb_prepare.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/recomb_prepare.py \
             --family {wildcards.fam} \
             --sequences {input.combined} \
             --metadata {input.metadata} \
@@ -55,7 +55,7 @@ rule recomb_openrdp:
     conda: get_env("OPENRDP_ENV")
     shell:
         """
-        python scripts/run_openrdp.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/run_openrdp.py \
             --alignment {input.aln} --eligible {input.eligible} \
             --scanners {params.scanners:q} \
             --min-methods {params.min_methods} \
@@ -81,7 +81,7 @@ rule recomb_hyphy:
     conda: get_env("RECOMB_ENV")
     shell:
         """
-        python scripts/run_hyphy_gard.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/run_hyphy_gard.py \
             --alignment {input.aln} --eligible {input.eligible} \
             --method {params.method} --mode {params.mode} \
             --out-tsv {output.events} 2> {output.log}
@@ -103,7 +103,7 @@ rule recomb_rdp5:
     resources: mem_gb=8, runtime=720
     shell:
         """
-        python scripts/run_rdp5.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/run_rdp5.py \
             --alignment {input.aln} --eligible {input.eligible} \
             --rdp5-binary {params.binary:q} \
             --out-tsv {output.events} 2> {output.log}
@@ -126,7 +126,7 @@ rule recomb_summary:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/recomb_summary.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/recomb_summary.py \
             --family {wildcards.fam} \
             --event-tables {input.events} \
             --min-methods {params.min_methods} \

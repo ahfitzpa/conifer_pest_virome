@@ -26,6 +26,13 @@ module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
 export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
 export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+# Required, not decorative: without conda.sh the per-rule `conda activate` does
+# not update PATH, so a rule's `python` is the base Anaconda interpreter. That
+# has pandas but not Biopython, and all 21 collect_viral_positives jobs died on
+# `from Bio import SeqIO` even though the rule's env provides it (job 1180235).
+# No `conda deactivate` here: on a node with a degraded NFS mount it blocked for
+# minutes before Snakemake even started.
+source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
  --latency-wait 300 --use-conda --conda-prefix .snakemake/conda \

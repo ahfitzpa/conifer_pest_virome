@@ -41,7 +41,7 @@ rule rdrp_domains:
             echo "WARNING: no seqkit_translate_output FASTA under $SCAN_DIR -- writing empty domain set" >&2
             TRANS=/dev/null
         fi
-        python scripts/extract_rdrp_domains.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/extract_rdrp_domains.py \
             --rdrp-tsv {input.rdrp} \
             --translated "$TRANS" \
             --family {wildcards.family} \
@@ -121,7 +121,7 @@ rule stage_counts:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/collect_stage_counts.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/collect_stage_counts.py \
             --manifest {params.manifest} \
             --root . \
             --min-len {params.min_len} \
@@ -148,7 +148,7 @@ rule escalation_fractions:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/escalation_fractions.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/escalation_fractions.py \
             --manifest {params.manifest} \
             --root . \
             --out {output.tsv}
@@ -176,7 +176,7 @@ rule candidate_contig_table:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/build_candidate_table.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/build_candidate_table.py \
             --manifest {params.manifest} \
             --root . \
             --out {output.tsv} \
@@ -208,7 +208,7 @@ rule combined_benchmarks:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/collect_benchmarks.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/collect_benchmarks.py \
             --manifest {params.manifest} \
             --benchmark-dir benchmarks \
             --out {output.tsv}
@@ -258,7 +258,7 @@ rule contig_confidence:
             echo "no MetaCerberus annotation directory under {input.annotation}" >&2
             exit 1
         fi
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --annotation-dir "$ANNOT" \
             --taxonomy {input.taxonomy} \
             --rdrp "data/06.rdrp/*/*/*_rdrp_domains.tsv" \

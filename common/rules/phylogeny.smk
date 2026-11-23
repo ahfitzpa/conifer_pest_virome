@@ -64,7 +64,7 @@ rule select_contigs:
         runtime=60,
     shell:
         """
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --master-fasta {input.fasta} \
             --metadata {input.metadata} \
             --manifest {input.manifest} \

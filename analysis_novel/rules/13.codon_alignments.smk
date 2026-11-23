@@ -64,7 +64,7 @@ rule select_orf1:
         runtime=60,
     shell:
         """
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --faa {input.faa} --ffn {input.ffn} \
             --out-faa {output.faa} --out-ffn {output.ffn} \
             --out-table {output.table} \
@@ -119,7 +119,7 @@ rule codon_align_orf1:
         runtime=60,
     shell:
         """
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --aa-aln {input.aln} --cds {input.cds} \
             --out {output.aln} --report {output.report} \
             --genetic-code {params.code} \

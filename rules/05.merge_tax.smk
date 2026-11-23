@@ -26,7 +26,7 @@ rule collect_viral_positives:
         "benchmarks/collect_viral_positives/{family}_{sample}.tsv"
     shell:
         """
-        python scripts/merge_taxonomy_calls.py collect \\
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/merge_taxonomy_calls.py collect \\
             --contigs {input.contigs} --kraken2 {input.kraken2} --ktaxonomy {input.ktaxonomy} \\
             --genomad {input.genomad} --rdrpcatch {input.rdrpcatch} \\
             --out-tsv {output.calls} --out-fasta {output.fasta}
@@ -58,7 +58,7 @@ rule annotate_viral_positives:
         "benchmarks/annotate_viral_positives/{family}_{sample}.tsv"
     shell:
         """
-        python scripts/merge_taxonomy_calls.py annotate \\
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/merge_taxonomy_calls.py annotate \\
             --calls {input.calls} --checkv {input.checkv} --virsorter2 {params.virsorter2} \\
             --out {output.merged}
         """

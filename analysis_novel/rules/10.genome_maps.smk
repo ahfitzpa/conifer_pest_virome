@@ -26,7 +26,7 @@ rule genome_map_prepare:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/build_genome_map.py --prepare-only \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/build_genome_map.py --prepare-only \
             --family {wildcards.fam} \
             --candidates {input.candidates} \
             --orf-annotation {input.orf_annotation} \
@@ -54,7 +54,7 @@ rule genome_map_plot:
     shell:
         """
         mkdir -p figures/{wildcards.fam}
-        python scripts/build_genome_map.py --plot-only \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/build_genome_map.py --plot-only \
             --family {wildcards.fam} \
             --config {params.config} \
             --in-table {input.table} \

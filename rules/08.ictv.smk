@@ -37,7 +37,7 @@ rule ictv_prepare:
     conda: get_env("TAX_CORE_ENV")
     shell:
         """
-        python scripts/ictv_prepare.py \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/ictv_prepare.py \
             --candidates {input.candidates} \
             --master-fasta {input.master} \
             --rdrp-faa {input.rdrp} \

@@ -35,7 +35,7 @@ rule prune_tree_to_alignment:
         runtime=30,
     shell:
         """
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --tree {input.tree} --alignment {input.aln} \
             --out-tree {output.tree} --out-report {output.report} \
             --strip-support --min-taxa {params.min_taxa} > {log} 2>&1
@@ -116,7 +116,7 @@ rule selection_summary:
         runtime=60,
     shell:
         """
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --fubar {input.fubar} --meme {input.meme} \
             --out-sites {output.sites} --out-summary {output.summary} \
             --omega-positive {params.pos} --omega-purifying {params.pur} \
@@ -145,7 +145,7 @@ rule composition_signatures:
         runtime=60,
     shell:
         """
-        python3 -I {params.script} --cds {input.cds} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} --cds {input.cds} \
             --out-rscu {output.rscu} --out-dinuc {output.dinuc} \
             --genetic-code {params.code} > {log} 2>&1
         """
@@ -177,7 +177,7 @@ rule plot_signatures:
     shell:
         """
         mkdir -p figures/{wildcards.fam}
-        python3 -I {params.script} \
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" -I {params.script} \
             --sites {input.sites} --summary {input.summary} \
             --dinucleotide {input.dinuc} --rscu {input.rscu} \
             --family {wildcards.fam} --fig-dir figures/{wildcards.fam} > {log} 2>&1
