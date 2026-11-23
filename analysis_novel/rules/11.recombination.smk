@@ -1,9 +1,11 @@
 # Phase 3: recombination screening of candidates with sufficient reference
 # density (Zhao et al., Fig. 3 style).
 #
-# OpenRDP lives in its own conda env (numpy<2, as in CaliciTyper); HyPhy GARD
-# in another. RDP5 is a standalone binary supplied via config -- if it is not
-# present the rule FAILS LOUDLY rather than writing "not_assessed".
+# Two screeners, each in its own conda env: OpenRDP (numpy<2, as in
+# CaliciTyper) and HyPhy GARD. OpenRDP is the RDP implementation used here --
+# the old recomb_rdp5 rule shelled out to the standalone RDP5 binary, which is
+# not on bioconda, was never supplied (rdp5_binary was always empty) and so
+# never ran. OpenRDP's RDP scanner covers it.
 # An alignment is only screened if >= min_references ICTV exemplars exist for
 # that family AND it is >= min_alignment_nt long (checked in recomb_prepare).
 #
@@ -104,34 +106,10 @@ rule recomb_hyphy:
         """
 
 
-rule recomb_rdp5:
-    input:
-        aln = REC_DIR + "/{fam}/recomb.aln.fasta",
-        candidates = REC_DIR + "/{fam}/candidates.txt",
-        eligible = REC_DIR + "/{fam}/eligible.tsv"
-    output:
-        events = REC_DIR + "/{fam}/rdp5_events.tsv",
-        log = REC_DIR + "/{fam}/rdp5.log"
-    params:
-        binary = REC_CFG.get("rdp5_binary", "")
-    benchmark:
-        "benchmarks/recomb_rdp5/{fam}.tsv"
-    threads: 1
-    resources: mem_gb=8, runtime=720
-    shell:
-        """
-        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/run_rdp5.py \
-            --alignment {input.aln} --eligible {input.eligible} \
-            --rdp5-binary {params.binary:q} \
-            --out-tsv {output.events} 2> {output.log}
-        """
-
-
 rule recomb_summary:
     input:
         events = expand(REC_DIR + "/{{fam}}/{m}_events.tsv",
-                        m=["openrdp", "hyphy_gard"] +
-                          (["rdp5"] if REC_CFG.get("rdp5_binary") else []))
+                        m=["openrdp", "hyphy_gard"])
     output:
         summary = REC_DIR + "/{fam}/recombination_summary.tsv"
     params:

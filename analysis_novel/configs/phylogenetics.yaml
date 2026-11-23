@@ -91,10 +91,10 @@ phylogenetics:
     # mostly gap in a full-genome alignment and the scanners read that as
     # breakpoints, so gap-dominated rows are dropped before screening.
     min_seq_coverage: 0.3
-    # Methods actually run. RDP5 is a standalone binary (not on bioconda) --
-    # supply its path; a missing binary FAILS LOUDLY, never "not_assessed".
+    # Methods actually run. The RDP scan comes from OpenRDP, not the standalone
+    # RDP5 binary: that is not on bioconda, rdp5_binary was never supplied, and
+    # its rule therefore never ran. OpenRDP's RDP scanner replaces it.
     methods: ["openrdp", "hyphy_gard"]
-    rdp5_binary: ""              # e.g. /scratch/fitzpatria_sh/RDP5/RDP5
     openrdp_scanners: ["RDP", "GENECONV", "BootScan", "MaxChi", "Chimaera", "SiScan", "3Seq"]
     openrdp_min_methods: 2       # events called by >= N scanners are reported
     hyphy_method: "gard"         # gard | walrus (if available in the env)

@@ -128,63 +128,14 @@ rule phylo_align:
         """
 
 
-rule phylo_tree:
-    input:
-        aln = PHYLO_DIR + "/families/{fam}/aln.trimmed.faa"
-    output:
-        tree = PHYLO_DIR + "/families/{fam}/tree.newick",
-        iqtree = PHYLO_DIR + "/families/{fam}/iqtree.txt",
-        log = PHYLO_DIR + "/families/{fam}/iqtree.log",
-        support = PHYLO_DIR + "/families/{fam}/support.tsv"
-    params:
-        prefix = PHYLO_DIR + "/families/{fam}/iqtree",
-        model = PCFG.get("iqtree_model", "MFP"),
-        ufb = PCFG.get("ufb_replicates", 1000),
-        alrt = PCFG.get("alrt_replicates", 1000)
-    benchmark:
-        "benchmarks/phylo_tree/{fam}.tsv"
-    threads: 8
-    resources: mem_gb=32, runtime=2880
-    conda: get_env("PHYLO_ENV")
-    shell:
-        """
-        mkdir -p $(dirname {params.prefix})
-        iqtree2 -s {input.aln} -m {params.model} \
-            -B {params.ufb} -alrt {params.alrt} -T {threads} \
-            --prefix {params.prefix} > {output.log} 2>&1
-        cp {params.prefix}.treefile {output.tree}
-        cp {params.prefix}.iqtree {output.iqtree}
-        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/phylo_support.py --iqtree {output.iqtree} --out {output.support}
-        """
-
-
-rule phylo_summary:
-    input:
-        tree = PHYLO_DIR + "/families/{fam}/tree.newick",
-        support = PHYLO_DIR + "/families/{fam}/support.tsv",
-        meta = PHYLO_DIR + "/families/{fam}/taxa_metadata.tsv"
-    output:
-        summary = PHYLO_DIR + "/families/{fam}/phylo_summary.tsv"
-    params:
-        config = PHYLO_CONFIG_FILE,
-        min_ufb = PCFG.get("min_ufb", 70),
-        min_alrt = PCFG.get("min_alrt", 90)
-    benchmark:
-        "benchmarks/phylo_summary/{fam}.tsv"
-    threads: 1
-    resources: mem_gb=8, runtime=60
-    conda: get_env("TAX_CORE_ENV")
-    shell:
-        """
-        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/phylo_summary.py \
-            --family {wildcards.fam} \
-            --tree {input.tree} \
-            --support {input.support} \
-            --metadata {input.meta} \
-            --config {params.config} \
-            --min-ufb {params.min_ufb} --min-alrt {params.min_alrt} \
-            --out {output.summary}
-        """
+# Task 1 ends at the alignment. The ML tree that used to be built here
+# (rule phylo_tree -> tree.newick, and phylo_summary over it) was consumed by
+# nothing but its own summary table: the tree every downstream step actually
+# reads is the scenario phylogeny's nucleotide tree in SCENARIO_PHYLO_DIR,
+# which rules 11, 13 and 14 and the figure scripts all use. Two ML trees per
+# family were being built for one consumer; aln.trimmed.faa is what rule 12
+# (demarcation) needs from this task, so the alignment stays and the second
+# IQ-TREE run is gone.
 
 
 # ---------------------------------------------------------------------------
@@ -339,10 +290,8 @@ rule diagnostic_plot:
 # ---------------------------------------------------------------------------
 rule phylo_all:
     input:
-        trees = lambda wc: expand(PHYLO_DIR + "/families/{fam}/tree.newick",
-                                  fam=get_marker_family_list(wc)),
-        summaries = lambda wc: expand(PHYLO_DIR + "/families/{fam}/phylo_summary.tsv",
-                                      fam=get_marker_family_list(wc)),
+        alignments = lambda wc: expand(PHYLO_DIR + "/families/{fam}/aln.trimmed.faa",
+                                       fam=get_marker_family_list(wc)),
         concat_trees = lambda wc: expand(PHYLO_DIR + "/families/{fam}/concat.tree.newick",
                                          fam=get_concat_families(wc)),
         matrices = lambda wc: expand(PHYLO_DIR + "/families/{fam}/diagnostic_residues.tsv",
