@@ -6,21 +6,32 @@
 # present the rule FAILS LOUDLY rather than writing "not_assessed".
 # An alignment is only screened if >= min_references ICTV exemplars exist for
 # that family AND it is >= min_alignment_nt long (checked in recomb_prepare).
+#
+# The screen runs on NUCLEOTIDES: the scenario phylogeny's trimmed alignment
+# (FAMSA -> ClipKIT), not rule 09's amino-acid bundle. Every scanner here
+# (GARD's ReadNucleotideDataSet, GENECONV, MaxChi, Chimaera, SiScan, 3Seq)
+# assumes an aligned nucleotide matrix, and rule 09's combined.faa is neither
+# aligned nor nucleotide -- which is why every eligible family died at parse
+# with "Sequence N is longer than the previous sequences" on 2026-11-23.
 
 REC_DIR = "results/recombination"
 REC_CFG = config["phylogenetics"]["recombination"]
+# Set by the pathway's Snakefile; the default keeps this file usable alone.
+REC_ALN_DIR = globals().get("SCENARIO_PHYLO_DIR", "results/phylogeny")
 
 
 rule recomb_prepare:
     input:
-        combined = PHYLO_DIR + "/families/{fam}/combined.faa",
-        metadata = PHYLO_DIR + "/families/{fam}/taxa_metadata.tsv"
+        aln = REC_ALN_DIR + "/{fam}/aln.trimmed.fasta",
+        selected = REC_ALN_DIR + "/{fam}/selected.tsv"
     output:
-        aln = REC_DIR + "/{fam}/recomb.aln.faa",
+        aln = REC_DIR + "/{fam}/recomb.aln.fasta",
+        candidates = REC_DIR + "/{fam}/candidates.txt",
         eligible = REC_DIR + "/{fam}/eligible.tsv"
     params:
         min_refs = REC_CFG["min_references"],
-        min_aln = REC_CFG["min_alignment_nt"]
+        min_aln = REC_CFG["min_alignment_nt"],
+        min_cov = REC_CFG.get("min_seq_coverage", 0.3)
     benchmark:
         "benchmarks/recomb_prepare/{fam}.tsv"
     threads: 1
@@ -30,16 +41,19 @@ rule recomb_prepare:
         """
         "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/recomb_prepare.py \
             --family {wildcards.fam} \
-            --sequences {input.combined} \
-            --metadata {input.metadata} \
+            --alignment {input.aln} \
+            --selected {input.selected} \
             --min-refs {params.min_refs} --min-aln {params.min_aln} \
-            --out-faa {output.aln} --out-eligible {output.eligible}
+            --min-coverage {params.min_cov} \
+            --out-fasta {output.aln} --out-candidates {output.candidates} \
+            --out-eligible {output.eligible}
         """
 
 
 rule recomb_openrdp:
     input:
-        aln = REC_DIR + "/{fam}/recomb.aln.faa",
+        aln = REC_DIR + "/{fam}/recomb.aln.fasta",
+        candidates = REC_DIR + "/{fam}/candidates.txt",
         eligible = REC_DIR + "/{fam}/eligible.tsv"
     output:
         events = REC_DIR + "/{fam}/openrdp_events.tsv",
@@ -57,6 +71,7 @@ rule recomb_openrdp:
         """
         "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/run_openrdp.py \
             --alignment {input.aln} --eligible {input.eligible} \
+            --candidates {input.candidates} \
             --scanners {params.scanners:q} \
             --min-methods {params.min_methods} \
             --bootstrap {params.bootstrap} \
@@ -66,7 +81,8 @@ rule recomb_openrdp:
 
 rule recomb_hyphy:
     input:
-        aln = REC_DIR + "/{fam}/recomb.aln.faa",
+        aln = REC_DIR + "/{fam}/recomb.aln.fasta",
+        candidates = REC_DIR + "/{fam}/candidates.txt",
         eligible = REC_DIR + "/{fam}/eligible.tsv"
     output:
         events = REC_DIR + "/{fam}/hyphy_gard_events.tsv",
@@ -90,7 +106,8 @@ rule recomb_hyphy:
 
 rule recomb_rdp5:
     input:
-        aln = REC_DIR + "/{fam}/recomb.aln.faa",
+        aln = REC_DIR + "/{fam}/recomb.aln.fasta",
+        candidates = REC_DIR + "/{fam}/candidates.txt",
         eligible = REC_DIR + "/{fam}/eligible.tsv"
     output:
         events = REC_DIR + "/{fam}/rdp5_events.tsv",

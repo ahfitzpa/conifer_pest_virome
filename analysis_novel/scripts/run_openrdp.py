@@ -30,6 +30,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--alignment", required=True)
     ap.add_argument("--eligible", required=True)
+    ap.add_argument("--candidates", default="",
+                    help="candidate sequence names, one per line, from recomb_prepare")
     ap.add_argument("--scanners", required=True)
     ap.add_argument("--min-methods", type=int, default=2)
     ap.add_argument("--bootstrap", type=int, default=100)
@@ -44,7 +46,8 @@ def main() -> int:
               file=sys.stderr)
         return 3
 
-    fields = ["query", "donor", "breakpoint", "n_scanners", "scanners", "status"]
+    fields = ["query", "donor", "breakpoint", "n_scanners", "scanners",
+              "recombinant_is_candidate", "status"]
     el = parse_detectnum(a.eligible, "")
     if not el or el.get("eligible") != "1":
         print("not assessable: " + (el.get("reason") if el else "no eligibility file") + " -- skipped",
@@ -52,8 +55,15 @@ def main() -> int:
         with open(a.out_tsv, "w", newline="", encoding="utf-8") as fh:
             csv.DictWriter(fh, fieldnames=fields, delimiter="\t").writeheader()
         return 0
-    names = iter_fasta(a.alignment)
-    candidate_names = [n for n in names if n.startswith("cand|")]
+    # Candidates come from recomb_prepare's list; the cand| prefix is the
+    # fallback for the old amino-acid bundles, whose names carried it.
+    names = [n.split()[0] for n in iter_fasta(a.alignment)]
+    if a.candidates:
+        with open(a.candidates, encoding="utf-8") as fh:
+            wanted = {ln.strip() for ln in fh if ln.strip()}
+        candidate_names = [n for n in names if n in wanted]
+    else:
+        candidate_names = [n for n in names if n.startswith("cand|")]
     if not candidate_names:
         print("not assessable: no candidate sequences -- skipped", file=sys.stderr)
         with open(a.out_tsv, "w", newline="", encoding="utf-8") as fh:
@@ -87,10 +97,12 @@ def main() -> int:
     with open(a.out_tsv, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
         w.writeheader()
+        cand_set = set(candidate_names)
         for (q, dn, bp), methods in sorted(grouped.items(), key=lambda x: -len(x[1])):
             w.writerow({"query": q, "donor": dn, "breakpoint": bp,
                         "n_scanners": len(methods),
                         "scanners": ";".join(sorted(methods)),
+                        "recombinant_is_candidate": int(q in cand_set),
                         "status": "supported" if len(methods) >= a.min_methods else "weak"})
     print(f"openrdp: {len(grouped)} candidate events, "
           f"{sum(len(m) >= a.min_methods for m in grouped.values())} supported", file=sys.stderr)

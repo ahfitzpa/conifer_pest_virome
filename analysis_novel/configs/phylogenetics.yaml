@@ -82,7 +82,15 @@ phylogenetics:
     # Minimum ICTV references per family before screening is attempted;
     # below this, recombination cannot be assessed meaningfully.
     min_references: 8
+    # Columns of the trimmed NUCLEOTIDE alignment. Until 2026-11-23 this was
+    # compared against an amino-acid length, making the gate ~3x stricter than
+    # written: Polycipiviridae (495), Phycodnaviridae (496) and Demerecviridae
+    # (475) were each excluded by a few residues.
     min_alignment_nt: 500
+    # Minimum non-gap fraction of columns per sequence. A fragmentary contig is
+    # mostly gap in a full-genome alignment and the scanners read that as
+    # breakpoints, so gap-dominated rows are dropped before screening.
+    min_seq_coverage: 0.3
     # Methods actually run. RDP5 is a standalone binary (not on bioconda) --
     # supply its path; a missing binary FAILS LOUDLY, never "not_assessed".
     methods: ["openrdp", "hyphy_gard"]

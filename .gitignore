@@ -54,3 +54,7 @@ benchmarks/
 
 # Generated poster figures
 analysis_novel/figures/
+
+# HyPhy writes errors.log into the working directory
+analysis_novel/errors.log
+errors.log
