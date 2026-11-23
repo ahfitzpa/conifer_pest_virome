@@ -51,3 +51,6 @@ __pycache__/
 analysis_novel/report_novel.html
 report_phase2.html
 benchmarks/
+
+# Generated poster figures
+analysis_novel/figures/
