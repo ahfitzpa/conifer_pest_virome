@@ -33,8 +33,20 @@ import csv
 import os
 
 RANK_DEPTH = {"phylum": 0, "class": 1, "order": 2, "family": 3}
-LINEAGE_TSV = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                           "common", "taxonomy", "family_lineage.tsv")
+
+# common/ sits one level up in conifer (scripts/) and two in Serratus
+# (phase2/scripts/), so the table is searched for rather than assumed.
+# FAMILY_LINEAGE_TSV overrides, for a layout neither pattern covers.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_CANDIDATES = [
+    os.environ.get("FAMILY_LINEAGE_TSV", ""),
+    os.path.join(_HERE, os.pardir, "common", "taxonomy", "family_lineage.tsv"),
+    os.path.join(_HERE, os.pardir, os.pardir, "common", "taxonomy", "family_lineage.tsv"),
+    os.path.join(_HERE, os.pardir, "taxonomy", "family_lineage.tsv"),
+]
+LINEAGE_TSV = next((os.path.normpath(p) for p in _CANDIDATES
+                    if p and os.path.exists(p)),
+                   os.path.normpath(_CANDIDATES[1]))
 
 # Taxa the callers still emit that ICTV has renamed or split. A name maps to
 # the successor(s) that replaced it; a call is compatible with any of them.
