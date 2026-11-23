@@ -41,9 +41,9 @@ rule genome_map_plot:
     input:
         table = GM_DIR + "/{fam}/genome_map_data.tsv"
     output:
-        pdf = "figures/genome_map_{fam}.pdf",
-        svg = "figures/genome_map_{fam}.svg",
-        png = "figures/genome_map_{fam}.png"
+        pdf = "figures/{fam}/genome_map_{fam}.pdf",
+        svg = "figures/{fam}/genome_map_{fam}.svg",
+        png = "figures/{fam}/genome_map_{fam}.png"
     params:
         config = PHYLO_CONFIG_FILE
     benchmark:
@@ -53,7 +53,7 @@ rule genome_map_plot:
     conda: get_env("GENOME_MAPS_ENV")
     shell:
         """
-        mkdir -p figures
+        mkdir -p figures/{wildcards.fam}
         python scripts/build_genome_map.py --plot-only \
             --family {wildcards.fam} \
             --config {params.config} \
@@ -66,5 +66,5 @@ rule genome_map_all:
     input:
         tables = lambda wc: expand(GM_DIR + "/{fam}/genome_map_data.tsv",
                                    fam=get_family_list(wc)),
-        figures = lambda wc: expand("figures/genome_map_{fam}.png",
+        figures = lambda wc: expand("figures/{fam}/genome_map_{fam}.png",
                                     fam=get_family_list(wc))

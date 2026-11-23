@@ -26,7 +26,12 @@ def main() -> int:
     aligner.open_gap_score = -11
     aligner.extend_gap_score = -1
 
-    seqs = {r.id: str(r.seq).replace("J", "X") for r in SeqIO.parse(a.alignment, "fasta")}
+    valid_aa = set(aligner.substitution_matrix.alphabet)
+
+    def clean_seq(seq: object) -> str:
+        return "".join(c if c in valid_aa else "X" for c in str(seq).upper().replace("-", ""))
+
+    seqs = {r.id: clean_seq(r.seq) for r in SeqIO.parse(a.alignment, "fasta")}
     with open(a.metadata, encoding="utf-8") as fh:
         meta = list(csv.DictReader(fh, delimiter="\t"))
     groups = {r["taxon_id"]: r.get("group", "") for r in meta}
@@ -39,10 +44,10 @@ def main() -> int:
         w = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
         w.writeheader()
         for q in candidates:
-            if q not in seqs:
+            if not seqs.get(q):
                 continue
             for r in refs:
-                if r not in seqs:
+                if not seqs.get(r):
                     continue
                 aln = aligner.align(seqs[q], seqs[r])[0]
                 qa, sa = aln.aligned

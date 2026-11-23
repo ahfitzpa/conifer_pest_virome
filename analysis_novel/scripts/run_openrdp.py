@@ -37,53 +37,53 @@ def main() -> int:
     a = ap.parse_args()
 
     try:
-        from openrdp import scanners as ORDP
+        from openrdp import Scanner, aliases
     except Exception as exc:
         print(f"ERROR: OpenRDP import failed ({exc}). Check the env "
-              "(numpy<2, openrdp==0.1.0). Failing loudly, not writing not_assessed.",
+              "(numpy<2, OpenRDP from GitHub). Failing loudly, not writing not_assessed.",
               file=sys.stderr)
         return 3
 
+    fields = ["query", "donor", "breakpoint", "n_scanners", "scanners", "status"]
     el = parse_detectnum(a.eligible, "")
     if not el or el.get("eligible") != "1":
         print("not assessable: " + (el.get("reason") if el else "no eligibility file") + " -- skipped",
               file=sys.stderr)
+        with open(a.out_tsv, "w", newline="", encoding="utf-8") as fh:
+            csv.DictWriter(fh, fieldnames=fields, delimiter="\t").writeheader()
+        return 0
     names = iter_fasta(a.alignment)
     candidate_names = [n for n in names if n.startswith("cand|")]
     if not candidate_names:
         print("not assessable: no candidate sequences -- skipped", file=sys.stderr)
+        with open(a.out_tsv, "w", newline="", encoding="utf-8") as fh:
+            csv.DictWriter(fh, fieldnames=fields, delimiter="\t").writeheader()
+        return 0
 
-    # OpenRDP 0.1.x API: each scanner module exposes a run(sequences, ...)
-    # returning a list of dict-like events. We introspect defensively and
-    # record the actual method names used in the output table.
     scanner_list = [s.strip() for s in a.scanners.split() if s.strip()]
-    events = []
+    valid_methods = []
     for s in scanner_list:
-        fn = getattr(ORDP, s, None) or getattr(ORDP, s.lower(), None)
-        if fn is None:
+        key = "threeseq" if s.lower() == "3seq" else s.lower()
+        if key not in aliases:
             print(f"WARNING: OpenRDP scanner {s} not found -- skipped", file=sys.stderr)
             continue
-        try:
-            result = fn(a.alignment)
-        except TypeError:
-            result = fn(sequences=a.alignment)
-        except Exception as exc:
-            print(f"WARNING: OpenRDP scanner {s} failed: {exc}", file=sys.stderr)
-            continue
-        for ev in result or []:
-            d = dict(ev) if not isinstance(ev, dict) else ev
-            events.append((s, d))
+        if key not in valid_methods:
+            valid_methods.append(key)
 
-    # Group by (query, donor, breakpoint range) and count supporting scanners.
     grouped = {}
-    for method, d in events:
-        q = d.get("query", d.get("seq1", "NA"))
-        dn = d.get("donor", d.get("seq2", "NA"))
-        bp = d.get("breakpoint", d.get("positions", "NA"))
-        key = (str(q), str(dn), str(bp))
-        grouped.setdefault(key, set()).add(method)
+    if valid_methods:
+        scanner = Scanner(methods=tuple(valid_methods))
+        results = scanner.run_scans(a.alignment)
+        for method in results.keys():
+            for d in results[method]:
+                q = d.get("recombinant", "NA")
+                p1 = d.get("parent1", "-")
+                p2 = d.get("parent2", "-")
+                dn = f"{p1}/{p2}" if p2 and p2 != "-" else str(p1)
+                bp = f"{d.get('start', 'NA')}-{d.get('end', 'NA')}"
+                key = (str(q), str(dn), str(bp))
+                grouped.setdefault(key, set()).add(method)
 
-    fields = ["query", "donor", "breakpoint", "n_scanners", "scanners", "status"]
     with open(a.out_tsv, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
         w.writeheader()

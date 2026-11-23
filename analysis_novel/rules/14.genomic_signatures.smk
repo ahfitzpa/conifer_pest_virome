@@ -61,6 +61,7 @@ rule hyphy_fubar:
         runtime=720,
     shell:
         """
+        rm -f {input.aln}.FUBAR.cache {input.aln}.FUBAR.json
         hyphy CPU={threads} fubar --alignment {input.aln} --tree {input.tree} \
             --code {params.code} --output {output.json} > {log} 2>&1
         """
@@ -160,9 +161,9 @@ rule plot_signatures:
         dinuc=SIG_DIR + "/{fam}/dinucleotide_odds.tsv",
         rscu=SIG_DIR + "/{fam}/rscu.tsv",
     output:
-        png="figures/signatures_{fam}.png",
-        svg="figures/signatures_{fam}.svg",
-        pdf="figures/signatures_{fam}.pdf",
+        png="figures/{fam}/signatures_{fam}.png",
+        svg="figures/{fam}/signatures_{fam}.svg",
+        pdf="figures/{fam}/signatures_{fam}.pdf",
     log:
         SIG_DIR + "/{fam}/logs/plot_signatures.log",
     params:
@@ -175,10 +176,11 @@ rule plot_signatures:
         runtime=60,
     shell:
         """
+        mkdir -p figures/{wildcards.fam}
         python3 -I {params.script} \
             --sites {input.sites} --summary {input.summary} \
             --dinucleotide {input.dinuc} --rscu {input.rscu} \
-            --family {wildcards.fam} --fig-dir figures > {log} 2>&1
+            --family {wildcards.fam} --fig-dir figures/{wildcards.fam} > {log} 2>&1
         """
 
 rule signatures_all:
@@ -187,4 +189,4 @@ rule signatures_all:
         expand(SIG_DIR + "/{fam}/selection_summary.tsv", fam=FAMILIES),
         expand(SIG_DIR + "/{fam}/rscu.tsv", fam=FAMILIES),
         expand(SIG_DIR + "/{fam}/dinucleotide_odds.tsv", fam=FAMILIES),
-        expand("figures/signatures_{fam}.png", fam=FAMILIES),
+        expand("figures/{fam}/signatures_{fam}.png", fam=FAMILIES),

@@ -247,6 +247,7 @@ rule contig_confidence:
         score_ratio = config.get("contig_confidence", {}).get("score_ratio", 1.5),
         min_viral_frac = config.get("contig_confidence", {}).get("min_viral_frac", 0.5),
         min_tools = config.get("contig_confidence", {}).get("min_tools", 2),
+        min_kept_contigs = config.get("contig_confidence", {}).get("min_kept_contigs", 1),
     conda: get_env("TAX_CORE_ENV")
     threads: 1
     resources: mem_gb=16, runtime=120
@@ -268,5 +269,6 @@ rule contig_confidence:
             --score-ratio {params.score_ratio} \
             --min-viral-frac {params.min_viral_frac} \
             --min-tools {params.min_tools} \
+            --min-kept-contigs {params.min_kept_contigs} \
             --keep "{params.keep_levels}" > {log} 2>&1
         """

@@ -63,4 +63,11 @@ run_target setup_genomad       "Fetching geNomad DB (~1.5GB)..."
 run_target setup_metacerberus  "Fetching MetaCerberus HMMs (KOFam/VOG/PHROG)..."
 
 echo
-echo "[setup_databases] Done. All 6 databases are in place under $DB_ROOT."
+echo "[setup_databases] Fetching ICTV Virus Metadata Resource (VMR MSL41.v1)..."
+mkdir -p references
+curl -fsSL -A "Mozilla/5.0" \
+    "https://ictv.global/sites/default/files/VMR/VMR_MSL41.v1.20260729.xlsx" \
+    -o "references/VMR_MSL41.v1.20260729.xlsx"
+
+echo
+echo "[setup_databases] Done. All 6 databases and ICTV VMR are in place under $DB_ROOT and references/."

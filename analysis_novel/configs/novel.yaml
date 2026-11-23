@@ -23,3 +23,7 @@ phylogeny:
   min_length: 1000
   max_length: 0
   min_taxa: 4
+
+codon:
+  # Multi-family pest virome: widen beyond Hepeviridae's 1500-8000 nt ORF1 window.
+  orf_length_window: [300, 30000]
