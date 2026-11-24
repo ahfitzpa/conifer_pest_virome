@@ -29,8 +29,15 @@ def main() -> int:
         return 0
 
     out_json = str(Path(a.out_tsv).with_suffix(".gard.json"))
+    # TOLERATE_NUMERICAL_ERRORS=1 is HyPhy's own documented remedy for the
+    # ComputeBranchCache abort ("reversible model cached likelihood" differing
+    # from the directly computed one), which it attributes to numerical
+    # instability on larger alignments. Hepeviridae (102 sequences x 15,286 nt)
+    # hit it during the single-breakpoint stage on 2026-11-23; without this,
+    # GARD exits non-zero and the family is never screened.
     cmd = ["hyphy", a.method, "--alignment", a.alignment,
-           "--mode", a.mode, "--output", out_json]
+           "--mode", a.mode, "--output", out_json,
+           "ENV=TOLERATE_NUMERICAL_ERRORS=1"]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError:

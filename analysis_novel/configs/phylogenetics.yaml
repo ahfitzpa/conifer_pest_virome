@@ -109,11 +109,43 @@ phylogenetics:
     # criterion the family actually uses; `null` means NOT CONFIGURED and the
     # script writes criterion_not_configured rather than inventing a number.
     thresholds:
-      "Dicistroviridae": {species_marker: "capsid", species_max_pct: 90, genus_marker: null, genus_max_pct: null, note: "ICTV: capsid polyprotein identity"}
-      "Iflaviridae": {species_marker: "capsid", species_max_pct: 90, genus_marker: null, genus_max_pct: null, note: "ICTV: >90% capsid identity within species"}
-      "Chuviridae": {species_marker: "L", species_max_pct: 90, genus_marker: "L", genus_max_pct: 31, note: "Di Paola et al. 2022"}
-      "Aliusviridae": {species_marker: "L", species_max_pct: 90, genus_marker: "L", genus_max_pct: 31, note: "Di Paola et al. 2022"}
-      "Phasmaviridae": {species_marker: "L", species_max_pct: 95, genus_marker: null, genus_max_pct: null, note: "ICTV: <95% L identity"}
-      "Orthomyxoviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "genus-specific criteria -- verify before use"}
-      "Tombusviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "verify family criterion before use"}
+      # Verified against the current ICTV report chapters, 2026-11-24. A null
+      # means the chapter states NO numeric criterion -- the script then writes
+      # criterion_not_configured rather than inventing a number. The marker
+      # names matter: a criterion defined on capsid, ORF5, full-length L or
+      # concatenated core genes cannot be applied to an RdRp alignment, and the
+      # script withholds the call with criterion_marker_mismatch when they
+      # differ. species_max_pct is the identity ABOVE which two viruses are the
+      # same species; below it the candidate is called novel.
+
+      # --- criteria ICTV states on the RdRp, so our alignment can apply them ---
+      "Phenuiviridae": {species_marker: "rdrp", species_max_pct: 95, genus_marker: null, genus_max_pct: null, note: "ICTV: viruses in different species have <95% RdRP aa identity. Genus is phylogeny + genome organization + ecology, no number"}
+      "Xinmoviridae": {species_marker: "rdrp", species_max_pct: 66, genus_marker: "rdrp", genus_max_pct: 60, note: "ICTV: different species <=66% RdRP aa identity; different genera <=60%"}
+      "Partitiviridae": {species_marker: null, species_max_pct: null, genus_marker: "rdrp", genus_max_pct: 24, note: "ICTV: <24% RdRP aa identity between genera. No species criterion is stated in the chapter"}
+      "Spinareoviridae": {species_marker: null, species_max_pct: null, genus_marker: "rdrp", genus_max_pct: 26, note: "ICTV: different genera usually <26% RdRP aa identity, within a genus usually >30%. Stated as usually, with named exceptions (mycoreovirus ~29% vs Coltivirus; aquareo/orthoreo up to 42%). Species criteria are qualitative only"}
+
+      # --- criteria exist but on a marker this alignment does not measure ---
+      "Dicistroviridae": {species_marker: "capsid", species_max_pct: 90, genus_marker: null, genus_max_pct: null, note: "ICTV: >90% capsid aa identity within a species, plus host range and serology. Capsid, not RdRp -- call withheld on an RdRp alignment"}
+      "Iflaviridae": {species_marker: "capsid", species_max_pct: 90, genus_marker: null, genus_max_pct: null, note: "ICTV: >90% capsid aa identity within a species. Capsid, not RdRp -- call withheld on an RdRp alignment"}
+      "Chuviridae": {species_marker: "L", species_max_pct: 90, genus_marker: "L", genus_max_pct: 31, note: "Di Paola et al. 2022, on full-length L. Not the ICTV chapter, and L is not the RdRp domain this alignment measures"}
+      "Aliusviridae": {species_marker: "L", species_max_pct: 90, genus_marker: "L", genus_max_pct: 31, note: "Di Paola et al. 2022, on full-length L. Not the ICTV chapter, and L is not the RdRp domain this alignment measures"}
+      "Phasmaviridae": {species_marker: "L", species_max_pct: 95, genus_marker: null, genus_max_pct: null, note: "ICTV: <95% L identity between species. Full-length L, not the RdRp domain"}
+      "Baculoviridae": {species_marker: "lef-8+lef-9+polh nt K2P", species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "ICTV Alpha/Betabaculovirus: Kimura-2-parameter nt distance on partial lef-8, lef-9 and polh/gran -- <0.015 subs/site same species, >0.05 different, 0.015-0.05 needs host range. A distance on three core genes, not an RdRp identity, so it cannot be expressed here. Gamma/Deltabaculovirus have no numeric criterion"}
+      "Polycipiviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "ICTV genus pages: formal species criteria not established. The >90% ORF5 aa identity figure on those pages is descriptive, not a demarcation threshold, and ORF5 is not the RdRp"}
+
+      # --- chapters that state no numeric criterion at all ---
+      "Nyamiviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "ICTV: no firm genus criteria beyond phylogeny and host; no species criteria stated"}
+      "Rhabdoviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "ICTV: genera by L phylogeny, genome architecture, antigenicity and ecology; no numeric threshold, no species criteria stated"}
+      "Solemoviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "ICTV: genera differentiated by phylogenies of individual ORFs or proteins; no number, no species criteria stated"}
+      "Flaviviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "No family-wide criterion: ICTV states these per genus. Hepacivirus >0.25 aa p-distance in conserved NS3 (and >0.3 in NS5B); Pegivirus >0.31 in NS3; Orthoflavivirus is multi-factor with no number. Per-genus NS3/NS5B criteria cannot be applied to a family-level RdRp alignment"}
+      "Hepeviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "ICTV chapter gives no species or genus criterion. Its only numeric statement is at subfamily level: inter-subfamily ORF1 aa p-distance >0.6 vs intra-subfamily <0.5"}
+      "Orthomyxoviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "No chapter in the current ICTV report index (checked 2026-11-24); criteria are genus-specific. Verify before use"}
+      "Tombusviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "No chapter in the current ICTV report index (checked 2026-11-24). Verify before use"}
+
+      # --- ranks above family: ICTV publishes no criterion here ---
+      "Amarillovirales": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "An order, not a family. No criterion exists at this rank; see Flaviviridae, whose criteria are per genus"}
+      "Tolivirales": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "An order, not a family. No criterion at this rank"}
+      "Duplopiviricetes": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "A class, not a family. No criterion at this rank"}
+      "Duplornaviricota": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "A phylum, not a family. No criterion at this rank"}
+      "Reoviridae": {species_marker: null, species_max_pct: null, genus_marker: null, genus_max_pct: null, note: "Legacy name: split into Sedoreoviridae and Spinareoviridae in 2022. Use those entries; contigs binned here should be re-assigned"}
 

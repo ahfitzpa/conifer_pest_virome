@@ -17,6 +17,20 @@ def read_tsv(path):
         return list(csv.DictReader(fh, delimiter="\t"))
 
 
+def marker_matches(criterion, evaluated):
+    """True when the criterion's marker is the one the alignment measures.
+
+    Substring either way, so "rdrp" matches "RdRp" and "RdRP amino acid". A
+    criterion defined on a different protein (capsid, ORF5, the full-length L,
+    concatenated core genes) does NOT match an RdRp alignment and must not be
+    applied to it.
+    """
+    if not criterion or not evaluated:
+        return False
+    c, e = criterion.lower(), evaluated.lower()
+    return c in e or e in c
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--family", required=True)
@@ -62,26 +76,43 @@ def main() -> int:
                     "genus_threshold_pct": genus_max if genus_max is not None else "NA",
                     "below_genus_threshold": "NA",
                     "call": "withheld", "status": "ok", "note": rule.get("note", "")}
+            # Species and genus are judged independently. Partitiviridae and
+            # Spinareoviridae publish a numeric GENUS criterion and no species
+            # one; evaluating genus only when a species threshold existed threw
+            # those away and withheld every row.
+            identity = float(r["identity_pct"])
+            reasons, below, below_g = [], None, None
+
             if species_max is None:
-                base["status"] = "criterion_not_configured"
-                base["note"] = (base["note"] + " | species criterion not configured; "
-                                "no call made").strip(" |")
-            elif criterion_marker and evaluated_marker and \
-                    criterion_marker.lower() not in evaluated_marker.lower() and \
-                    evaluated_marker.lower() not in criterion_marker.lower():
-                base["status"] = "criterion_marker_mismatch"
-                base["note"] = (base["note"] + f" | criterion uses {criterion_marker} but "
-                                f"alignment is {evaluated_marker}; no call made").strip(" |")
+                reasons.append("species criterion not configured")
+            elif not marker_matches(criterion_marker, evaluated_marker):
+                reasons.append(f"species criterion uses {criterion_marker} but "
+                               f"alignment is {evaluated_marker}")
             else:
-                below = float(r["identity_pct"]) < float(species_max)
+                below = identity < float(species_max)
                 base["below_species_threshold"] = int(below)
-                if genus_max is not None and genus_marker:
-                    below_g = float(r["identity_pct"]) < float(genus_max)
-                    base["below_genus_threshold"] = int(below_g)
-                    base["call"] = ("novel genus" if below_g else
-                                    "novel species" if below else "existing species")
-                else:
-                    base["call"] = "novel species" if below else "existing species"
+
+            if genus_max is None:
+                reasons.append("genus criterion not configured")
+            elif not marker_matches(genus_marker, evaluated_marker):
+                reasons.append(f"genus criterion uses {genus_marker} but "
+                               f"alignment is {evaluated_marker}")
+            else:
+                below_g = identity < float(genus_max)
+                base["below_genus_threshold"] = int(below_g)
+
+            if below_g:
+                base["call"] = "novel genus"
+            elif below is not None:
+                base["call"] = "novel species" if below else "existing species"
+            elif below_g is False:
+                base["call"] = "existing genus"
+            if base["call"] == "withheld":
+                base["status"] = ("criterion_marker_mismatch"
+                                  if any("alignment is" in x for x in reasons)
+                                  else "criterion_not_configured")
+            if reasons:
+                base["note"] = (base["note"] + " | " + "; ".join(reasons)).strip(" |")
             w.writerow(base)
     print(f"{a.family}: {len(best)} candidates evaluated -> {a.out}", file=sys.stderr)
     return 0

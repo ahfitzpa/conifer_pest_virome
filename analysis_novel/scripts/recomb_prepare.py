@@ -25,6 +25,26 @@ import argparse, csv, sys
 
 # Characters carrying no state for coverage purposes.
 MISSING = set("-.?nN~")
+# OpenRDP accepts only A, T, G, C, N and the gap: "Alignment contains invalid
+# characters Y. Sequences can only contain A,T,G,C,-,N." IUPAC ambiguity codes
+# are common in these assemblies (Iflaviridae alone carries 52 Y and 19 R), so
+# anything outside the accepted set becomes N, which every scanner treats as
+# missing data rather than as a state.
+ACCEPTED = set("ACGTN-")
+
+
+def normalise(seq):
+    """Upper-case, gaps unified to '-', anything else not ACGTN turned into N."""
+    out, replaced = [], 0
+    for ch in seq.upper():
+        if ch in ".~?":
+            out.append("-")
+        elif ch in ACCEPTED:
+            out.append(ch)
+        else:
+            out.append("N")
+            replaced += 1
+    return "".join(out), replaced
 
 
 def read_tsv(path):
@@ -119,11 +139,18 @@ def main() -> int:
         reasons.append(f"{len(dropped)} sequence(s) under {a.min_coverage:.0%} coverage removed")
     reason = "; ".join(reasons) if reasons else "reference density, taxa and length sufficient"
 
-    # 4. The screened alignment keeps its gaps: it IS the matrix the scanners read.
+    # 4. The screened alignment keeps its gaps: it IS the matrix the scanners
+    #    read. Ambiguity codes are folded to N on the way out.
+    n_ambiguous = 0
     with open(a.out_fasta, "w", encoding="utf-8") as fh:
         if eligible:
             for n, s in kept.items():
-                fh.write(f">{n}\n{s}\n")
+                seq, replaced = normalise(s)
+                n_ambiguous += replaced
+                fh.write(f">{n}\n{seq}\n")
+    if n_ambiguous:
+        print(f"{a.family}: {n_ambiguous} ambiguous base(s) written as N",
+              file=sys.stderr)
     with open(a.out_candidates, "w", encoding="utf-8") as fh:
         if eligible:
             fh.write("".join(f"{n}\n" for n in cands))
