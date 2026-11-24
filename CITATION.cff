@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this workflow or dataset, please cite it using the metadata below."
+title: "Conifer Pest Virome: Putative RNA Viruses Associated with Ips confusus and Hylobius abietis"
+type: software
+authors:
+  - family-names: Fitzpatrick
+    given-names: Amy H.
+    affiliation: "School of Veterinary Medicine, University College Dublin, Ireland"
+  - family-names: Babaian
+    given-names: Artem
+    affiliation: "Department of Molecular Genetics, University of Toronto, Canada"
+  - family-names: Fletcher
+    given-names: Nicola F.
+    affiliation: "School of Veterinary Medicine, University College Dublin, Ireland"
+repository-code: "https://github.com/ahfitzpa/conifer_pest_virome"
+license: GPL-3.0
+keywords:
+  - RNA viruses
+  - Coleoptera
+  - Ips confusus
+  - Hylobius abietis
+  - Snakemake
+  - metatranscriptomics

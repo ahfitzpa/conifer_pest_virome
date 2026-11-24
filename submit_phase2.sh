@@ -5,7 +5,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=14-00:00:00
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #SBATCH --mail-type=END,FAIL
 # Pass your own notification address at submit time (SBATCH directives
 # can't read a config file): sbatch --mail-user=you@example.org submit_phase2.sh
@@ -23,8 +22,8 @@ export SNAKEMAKE_CONDA_FRONTEND=mamba
 # Keep caches off $HOME: it is quota-limited on this cluster, and a full home
 # stops Snakemake before it starts -- its source cache is created under
 # ~/.cache/snakemake and the failure is an OSError, not a workflow error.
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 conda deactivate 2>/dev/null || true

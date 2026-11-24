@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=04:00:00
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #
 # 1: score contig confidence from MetaCerberus annotation + taxonomy + RdRp
 set -uo pipefail
@@ -15,8 +14,8 @@ mkdir -p logs
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 conda deactivate 2>/dev/null || true
 snakemake -s Snakefile_phase2 --executor slurm --slurm-no-account --jobs 4 \

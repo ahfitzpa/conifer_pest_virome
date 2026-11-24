@@ -1,24 +1,23 @@
 #!/bin/bash
 #SBATCH --job-name=novel_full_test
-#SBATCH --output=/scratch/fitzpatria/Serratus/workflow/analysis_novel/logs/full_test_%j.log
+#SBATCH --output=logs/full_test_%j.log
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=1-00:00:00
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #
 # End-to-end test of analysis_novel on the 3-run manifest, through the stages
 # that do not need phase2's ICTV/reporting outputs (rules 09-12 wait on the
 # serratus_port job). Covers: phylogeny -> ORFs -> ORF1 -> codon alignment ->
 # tree pruning -> FUBAR/MEME -> selection summary + composition signatures.
 set -uo pipefail
-cd /scratch/fitzpatria/Serratus/workflow/analysis_novel
+cd "${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 mkdir -p logs tmp
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 conda deactivate 2>/dev/null || true
 export NOVEL_MANIFEST=../common/test_data/manifest_novel_test.csv

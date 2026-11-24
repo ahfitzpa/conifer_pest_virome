@@ -5,7 +5,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=7-00:00:00
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #SBATCH --mail-type=END,FAIL
 
 cd "$SLURM_SUBMIT_DIR"
@@ -13,8 +12,8 @@ mkdir -p logs
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=mamba
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 conda deactivate 2>/dev/null || true
 

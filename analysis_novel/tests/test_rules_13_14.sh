@@ -4,14 +4,14 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=30
-#SBATCH --output=/scratch/fitzpatria/Serratus/workflow/analysis_novel/logs/test_13_14_%j.log
+#SBATCH --output=logs/test_13_14_%j.log
 # 1: parse analysis_novel with rules 09-14 included
 # 2: exercise the new scripts against the host_range fixture (known answers)
 set -uo pipefail
-W=/scratch/fitzpatria/Serratus/workflow
-cd $W/analysis_novel
+W="${WORKFLOW_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+cd "$W/analysis_novel"
 module purge; module load snakemake/8.30.0
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
 export NOVEL_MANIFEST=../common/test_data/manifest_novel_test.csv
 status=0
 
@@ -33,9 +33,9 @@ for t in codon_all signatures_all novel_all; do
 done
 
 echo "### scripts against the fixture"
-export PATH=/scratch/fitzpatria/calicityper_env/bin:$PATH
+# Ensure pytest/python env is on PATH if needed
 F=$W/analysis_host_range/tests/fixtures
-T=/scratch/fitzpatria/tmp/novel_13_14_${SLURM_JOB_ID:-local}; mkdir -p $T
+T="${TMPDIR:-/tmp}/novel_13_14_${SLURM_JOB_ID:-local}"; mkdir -p "$T"
 trap 'rm -rf $T' EXIT
 
 python3 -I $W/common/scripts/prune_tree.py --tree $F/tree_with_support.newick \

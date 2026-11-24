@@ -4,12 +4,12 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=25
-#SBATCH --output=/scratch/fitzpatria/Serratus/workflow/analysis_novel/logs/dryrun_%j.log
+#SBATCH --output=logs/dryrun_%j.log
 # 1: parse analysis_novel and dry-run the phylogeny on the 3-run test manifest
 set -uo pipefail
-cd /scratch/fitzpatria/Serratus/workflow/analysis_novel
+cd "${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 module purge; module load snakemake/8.30.0
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
 export NOVEL_MANIFEST=../common/test_data/manifest_novel_test.csv
 echo "### rule list"
 snakemake -s Snakefile_novel --list; echo "rc=$?"

@@ -4,12 +4,12 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=30
-#SBATCH --output=/scratch/fitzpatria/Serratus/workflow/analysis_novel/logs/dryrun_0912_%j.log
+#SBATCH --output=logs/dryrun_0912_%j.log
 # 1: now phase2's ICTV/reporting outputs exist, check rules 09-12 resolve here
 set -uo pipefail
-cd /scratch/fitzpatria/Serratus/workflow/analysis_novel
+cd "${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 module purge; module load snakemake/8.30.0
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
 for t in phylo_all genome_map_all recomb_all demarcation_all novel_all; do
     echo "### $t"
     out=$(snakemake -s Snakefile_novel -n --quiet rules -- "$t" 2>&1)

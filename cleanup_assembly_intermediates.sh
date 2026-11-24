@@ -4,8 +4,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=60
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
-#SBATCH --output=/home/people/fitzpatria/scratch/conifer_pest_virome/logs/cleanup_%j.out
+#SBATCH --output=logs/cleanup_%j.out
 #
 # Reclaim regenerable intermediates under data/03.rnaviralSPAdes.
 #
@@ -38,7 +37,7 @@
 # SAFETY: refuses to delete anything while any job is running in this working
 # directory, because the Snakemake driver spawns children that write here.
 set -uo pipefail
-ROOT=/home/people/fitzpatria/scratch/conifer_pest_virome
+ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 ASM="$ROOT/data/03.rnaviralSPAdes"
 APPLY=0
 [ "${1:-}" = "--apply" ] && APPLY=1
