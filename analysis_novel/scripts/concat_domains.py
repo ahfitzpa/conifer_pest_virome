@@ -5,7 +5,10 @@ For every taxon (candidate contig and ICTV exemplar of one family), select the
 best-scoring protein fragment for each configured conserved domain, concatenate
 them in a fixed order separated by a placeholder, and write:
 
-  concat_domains.faa   concatenated sequences for MAFFT / IQ-TREE 2
+  concat_domains.faa   concatenated sequences (audit trail; NOT the alignment
+                       input -- concat_align.py reads the fragments instead)
+  concat_fragments.faa per-partition fragments, headed ">part<i>|<taxon>"
+  concat_partitions.tsv partition order and taxon count
   domain_presence.tsv  taxon x domain presence/length (audit trail)
   domain_schematic.tsv domain order and coverage for the figure schematic
 
@@ -70,6 +73,8 @@ def main() -> int:
     ap.add_argument("--out-faa", required=True)
     ap.add_argument("--out-matrix", required=True)
     ap.add_argument("--out-schematic", required=True)
+    ap.add_argument("--out-fragments", required=True)
+    ap.add_argument("--out-partitions", required=True)
     a = ap.parse_args()
 
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))["phylogenetics"]
@@ -146,6 +151,7 @@ def main() -> int:
         mw = csv.writer(mh, delimiter="\t")
         mw.writerow(["taxon_id", "domain", "present", "fragment_aa"])
         n_taxa_out = 0
+        kept = []
         for taxon in sorted(fragments):
             parts = [fragments[taxon].get(d, "") for d in domains]
             if not any(parts):
@@ -155,8 +161,27 @@ def main() -> int:
             for i in range(0, len(concatenated), 60):
                 fh.write(concatenated[i:i + 60] + "\n")
             n_taxa_out += 1
+            kept.append(taxon)
             for d, p in zip(domains, parts):
                 mw.writerow([taxon, d, "1" if p else "0", len(p) if p else 0])
+
+    # 3: per-partition fragments; concat_align.py aligns each on its own and
+    #    pads the taxa that lack one, which a bare concatenation cannot do
+    with open(a.out_fragments, "w", encoding="utf-8") as fh:
+        for i, d in enumerate(domains, 1):
+            for taxon in kept:
+                seq = fragments[taxon].get(d, "")
+                if not seq:
+                    continue
+                fh.write(f">part{i}|{taxon}\n")
+                for j in range(0, len(seq), 60):
+                    fh.write(seq[j:j + 60] + "\n")
+
+    with open(a.out_partitions, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh, delimiter="\t")
+        w.writerow(["part", "domain_keyword", "n_taxa"])
+        for i, d in enumerate(domains, 1):
+            w.writerow([i, d, sum(1 for t in kept if fragments[t].get(d))])
 
     with open(a.out_schematic, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh, delimiter="\t")

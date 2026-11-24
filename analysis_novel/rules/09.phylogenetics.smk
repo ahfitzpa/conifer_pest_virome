@@ -198,7 +198,9 @@ rule concat_prepare:
     output:
         concat = PHYLO_DIR + "/families/{fam}/concat_domains.faa",
         matrix = PHYLO_DIR + "/families/{fam}/domain_presence.tsv",
-        schematic = PHYLO_DIR + "/families/{fam}/domain_schematic.tsv"
+        schematic = PHYLO_DIR + "/families/{fam}/domain_schematic.tsv",
+        fragments = PHYLO_DIR + "/families/{fam}/concat_fragments.faa",
+        partitions = PHYLO_DIR + "/families/{fam}/concat_partitions.tsv"
     params:
         config = PHYLO_CONFIG_FILE
     benchmark:
@@ -219,16 +221,22 @@ rule concat_prepare:
             --config {params.config} \
             --out-faa {output.concat} \
             --out-matrix {output.matrix} \
-            --out-schematic {output.schematic}
+            --out-schematic {output.schematic} \
+            --out-fragments {output.fragments} \
+            --out-partitions {output.partitions}
         """
 
 
+# Each partition is aligned on its own and the taxa missing one are padded,
+# because MAFFT drops input gaps and realigns across the partition boundaries.
 rule concat_align:
     input:
-        concat = PHYLO_DIR + "/families/{fam}/concat_domains.faa"
+        fragments = PHYLO_DIR + "/families/{fam}/concat_fragments.faa",
+        partitions = PHYLO_DIR + "/families/{fam}/concat_partitions.tsv"
     output:
         aln = PHYLO_DIR + "/families/{fam}/concat.aln.faa",
-        trimmed = PHYLO_DIR + "/families/{fam}/concat.aln.trimmed.faa"
+        trimmed = PHYLO_DIR + "/families/{fam}/concat.aln.trimmed.faa",
+        ranges = PHYLO_DIR + "/families/{fam}/concat.partitions.tsv"
     params:
         strategy = PCFG.get("mafft_strategy", "--auto"),
         trim = PCFG.get("trimal_strategy", "-automated1")
@@ -239,8 +247,15 @@ rule concat_align:
     conda: get_env("PHYLO_ENV")
     shell:
         """
-        mafft {params.strategy} {input.concat} > {output.aln} 2> {output.aln}.log
-        trimal {params.trim} -in {output.aln} -out {output.trimmed} > {output.trimmed}.log 2>&1
+        "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/concat_align.py \
+            --fragments {input.fragments} \
+            --partitions {input.partitions} \
+            --out-aln {output.aln} \
+            --out-trimmed {output.trimmed} \
+            --out-ranges {output.ranges} \
+            --mafft-strategy={params.strategy:q} \
+            --trimal-strategy={params.trim:q} \
+            --threads {threads}
         """
 
 
