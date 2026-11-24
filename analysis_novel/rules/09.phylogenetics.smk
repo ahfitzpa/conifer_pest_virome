@@ -115,7 +115,7 @@ rule phylo_align:
         trimmed = PHYLO_DIR + "/families/{fam}/aln.trimmed.faa"
     params:
         strategy = PCFG.get("mafft_strategy", "--auto"),
-        trim = PCFG.get("trimal_strategy", "-autom1")
+        trim = PCFG.get("trimal_strategy", "-automated1")
     benchmark:
         "benchmarks/phylo_align/{fam}.tsv"
     threads: 4
@@ -185,7 +185,7 @@ rule concat_align:
         trimmed = PHYLO_DIR + "/families/{fam}/concat.aln.trimmed.faa"
     params:
         strategy = PCFG.get("mafft_strategy", "--auto"),
-        trim = PCFG.get("trimal_strategy", "-autom1")
+        trim = PCFG.get("trimal_strategy", "-automated1")
     benchmark:
         "benchmarks/concat_align/{fam}.tsv"
     threads: 4

@@ -108,7 +108,7 @@ Named metrics (model, UFB/SH-aLRT support rule, taxa counts) are in
 
 ## 7. Method notes to carry into the manuscript
 
-- MAFFT `--auto`, trimAl `-autom1`, IQ-TREE 2 `-m MFP` (ModelFinder),
+- MAFFT `--auto`, trimAl `-automated1`, IQ-TREE 2 `-m MFP` (ModelFinder),
   `-B 1000` (UFB), `-alrt 1000` (SH-aLRT), 8 threads.
 - Nodes considered supported at SH-aLRT ≥ 90 **and** UFB ≥ 70 (configurable).
 - Rooting: trees are rooted as inferred by IQ-TREE; midpoint root only if no

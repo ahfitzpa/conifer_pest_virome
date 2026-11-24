@@ -29,7 +29,7 @@ phylogenetics:
   # Single-marker ML phylogeny (task 1).
   marker: "rdrp"
   mafft_strategy: "--auto"
-  trimal_strategy: "-autom1"
+  trimal_strategy: "-automated1"
   iqtree_model: "MFP"
   ufb_replicates: 1000
   alrt_replicates: 1000
