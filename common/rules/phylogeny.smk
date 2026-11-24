@@ -54,6 +54,7 @@ rule select_contigs:
         max_per_sample=PHYLO.get("max_per_sample", 1),
         max_taxa=PHYLO.get("max_taxa", 0),
         min_taxa=PHYLO.get("min_taxa", 4),
+        max_ref_length_ratio=PHYLO.get("max_ref_length_ratio", 10.0),
         refs=lambda w, input: f"--references {input.references[0]}" if input.references else "",
         keep=lambda w, input: f"--keep-contigs {input.keep}" if input.keep else "",
     conda:
@@ -77,6 +78,7 @@ rule select_contigs:
             --max-per-sample {params.max_per_sample} \
             --max-taxa {params.max_taxa} \
             --min-taxa {params.min_taxa} \
+            --max-ref-length-ratio {params.max_ref_length_ratio} \
             {params.refs} {params.keep} > {log} 2>&1
         """
 

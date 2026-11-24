@@ -67,7 +67,15 @@ rule recomb_openrdp:
     benchmark:
         "benchmarks/recomb_openrdp/{fam}.tsv"
     threads: 4
-    resources: mem_gb=16, runtime=720
+    # runtime: was 720 (12 h). Job 1184742's ten eligible families all hit that
+    # limit still running at 10:50 with no events written -- OpenRDP's scanners
+    # are O(n^2) in sequences x windows and these alignments are 7.8-8.9 kb, far
+    # larger than the ineligible families that finished in minutes. 2160 (36 h)
+    # stays inside the 2-day parent window in submit_recomb.sh. TimeLimit cannot
+    # be raised on a running job, so a short limit here costs the whole run.
+    # mem_gb is local bookkeeping only (this cluster schedules on cores and
+    # rejects --mem); 64 records the 52.9 GB MaxRSS measured on Flaviviridae.
+    resources: mem_gb=64, runtime=2160
     conda: get_env("OPENRDP_ENV")
     shell:
         """

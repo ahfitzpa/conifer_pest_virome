@@ -153,6 +153,11 @@ def main() -> int:
     p.add_argument("--max-length", type=int, default=0,
                    help="0 = no cap; set it to exclude host/misassembly contigs "
                         "far above the expected genome size")
+    p.add_argument("--max-ref-length-ratio", type=float, default=10.0,
+                   help="drop references longer than this multiple of the "
+                        "median candidate length (0 = keep all). Guards "
+                        "against reference sets of whole genomes being "
+                        "aligned against short candidate fragments")
     p.add_argument("--agreement",
                    default="agree,agree_rank,rdrp_resolved,single_tool",
                    help="family_agreement values accepted; 'conflict' is excluded "
@@ -256,8 +261,28 @@ def main() -> int:
             write_fasta_record(out, label, seq)
 
         n_ref = 0
+        n_ref_dropped = 0
         if args.references and os.path.exists(args.references):
+            # 7a: references bypassed min_length/max_length entirely, which is
+            # how Phycodnaviridae killed FAMSA with std::bad_alloc (2026-11-24,
+            # job 1180998): its 2 candidates were 4.2 and 5.5 kb, but its
+            # reference set carried whole giant-virus genomes of 341-407 kb.
+            # Aligning a 5 kb gene against a 400 kb genome is meaningless
+            # regardless of memory -- MSA cost scales with the longest
+            # sequence, so one such reference dominates the whole job.
+            #
+            # The cap is relative to the candidates, because an absolute bp
+            # limit cannot suit both a 5 kb RdRp fragment and a 200 kb genome.
+            cand_lengths = sorted(int(r["length"]) for r in rows
+                                  if r["origin"] == "candidate")
+            cap = 0
+            if cand_lengths and args.max_ref_length_ratio > 0:
+                median_cand = cand_lengths[len(cand_lengths) // 2]
+                cap = int(median_cand * args.max_ref_length_ratio)
             for header, seq in read_fasta(args.references):
+                if cap and len(seq) > cap:
+                    n_ref_dropped += 1
+                    continue
                 label = re.sub(r"[^A-Za-z0-9_]", "_", header.split()[0])[:40]
                 while label in taken:
                     label += "_r"
@@ -268,6 +293,10 @@ def main() -> int:
                 write_fasta_record(out, label, seq)
                 n_ref += 1
             log(f"[select] added {n_ref} reference sequence(s)")
+            if n_ref_dropped:
+                log(f"[select] dropped {n_ref_dropped} reference(s) longer than "
+                    f"{cap} bp ({args.max_ref_length_ratio}x the median "
+                    f"candidate length); they would dominate the alignment")
 
     with open(args.out_table, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=TABLE_COLUMNS, delimiter="\t",
