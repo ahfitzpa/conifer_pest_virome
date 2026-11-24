@@ -108,6 +108,16 @@ phylogenetics:
     # Thresholds verified against ICTV family reports. Markers are the
     # criterion the family actually uses; `null` means NOT CONFIGURED and the
     # script writes criterion_not_configured rather than inventing a number.
+    # Marker equivalences this project asserts, so a criterion defined on one
+    # may be applied to the alignment's marker. ICTV does not state these: the
+    # mononegavirus L protein CONTAINS the RdRp domain but is much larger, and
+    # identity over the domain is not identity over the whole protein. Rows
+    # that used an alias are written with status ok_marker_alias and a note
+    # naming the approximation, so they can be filtered out again.
+    # Added 2026-11-24 at the user's request, for Chuviridae, Aliusviridae and
+    # Phasmaviridae, whose thresholds (Di Paola et al. 2022; ICTV) are on L.
+    marker_aliases:
+      rdrp: ["L"]
     thresholds:
       # Verified against the current ICTV report chapters, 2026-11-24. A null
       # means the chapter states NO numeric criterion -- the script then writes

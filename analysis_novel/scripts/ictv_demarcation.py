@@ -17,18 +17,27 @@ def read_tsv(path):
         return list(csv.DictReader(fh, delimiter="\t"))
 
 
-def marker_matches(criterion, evaluated):
-    """True when the criterion's marker is the one the alignment measures.
+def marker_matches(criterion, evaluated, aliases=None):
+    """How the criterion's marker relates to the one the alignment measures.
 
-    Substring either way, so "rdrp" matches "RdRp" and "RdRP amino acid". A
-    criterion defined on a different protein (capsid, ORF5, the full-length L,
-    concatenated core genes) does NOT match an RdRp alignment and must not be
-    applied to it.
+    Returns "direct" for a substring match either way, so "rdrp" matches
+    "RdRp" and "RdRP amino acid"; "alias" when the config declares the two
+    interchangeable under demarcation.marker_aliases; None otherwise. A
+    criterion defined on a different protein (capsid, ORF5, concatenated core
+    genes) does NOT match an RdRp alignment and must not be applied to it.
+
+    An alias is an approximation the caller has chosen to accept, so every row
+    that used one says so in its note.
     """
     if not criterion or not evaluated:
-        return False
+        return None
     c, e = criterion.lower(), evaluated.lower()
-    return c in e or e in c
+    if c in e or e in c:
+        return "direct"
+    for alias in (aliases or {}).get(e, []):
+        if alias.lower() == c:
+            return "alias"
+    return None
 
 
 def main() -> int:
@@ -47,6 +56,7 @@ def main() -> int:
     genus_marker = rule.get("genus_marker")
     genus_max = rule.get("genus_max_pct")
     evaluated_marker = cfg.get("marker", "rdrp")  # the phylo alignment marker
+    aliases = cfg["demarcation"].get("marker_aliases") or {}
 
     rows = [r for r in read_tsv(a.pairwise)]
     best = {}
@@ -83,23 +93,34 @@ def main() -> int:
             identity = float(r["identity_pct"])
             reasons, below, below_g = [], None, None
 
+            s_match = marker_matches(criterion_marker, evaluated_marker, aliases)
+            g_match = marker_matches(genus_marker, evaluated_marker, aliases)
+
             if species_max is None:
                 reasons.append("species criterion not configured")
-            elif not marker_matches(criterion_marker, evaluated_marker):
+            elif s_match is None:
                 reasons.append(f"species criterion uses {criterion_marker} but "
                                f"alignment is {evaluated_marker}")
             else:
                 below = identity < float(species_max)
                 base["below_species_threshold"] = int(below)
+                if s_match == "alias":
+                    reasons.append(f"species threshold defined on {criterion_marker}, "
+                                   f"applied to the {evaluated_marker} alignment by "
+                                   "configured alias (approximation)")
 
             if genus_max is None:
                 reasons.append("genus criterion not configured")
-            elif not marker_matches(genus_marker, evaluated_marker):
+            elif g_match is None:
                 reasons.append(f"genus criterion uses {genus_marker} but "
                                f"alignment is {evaluated_marker}")
             else:
                 below_g = identity < float(genus_max)
                 base["below_genus_threshold"] = int(below_g)
+                if g_match == "alias":
+                    reasons.append(f"genus threshold defined on {genus_marker}, "
+                                   f"applied to the {evaluated_marker} alignment by "
+                                   "configured alias (approximation)")
 
             if below_g:
                 base["call"] = "novel genus"
@@ -107,10 +128,15 @@ def main() -> int:
                 base["call"] = "novel species" if below else "existing species"
             elif below_g is False:
                 base["call"] = "existing genus"
+            mismatch = ((species_max is not None and s_match is None)
+                        or (genus_max is not None and g_match is None))
             if base["call"] == "withheld":
-                base["status"] = ("criterion_marker_mismatch"
-                                  if any("alignment is" in x for x in reasons)
+                base["status"] = ("criterion_marker_mismatch" if mismatch
                                   else "criterion_not_configured")
+            elif "alias" in (s_match, g_match):
+                # The call stands, but it rests on a marker equivalence the
+                # config asserts rather than one ICTV states. Filterable.
+                base["status"] = "ok_marker_alias"
             if reasons:
                 base["note"] = (base["note"] + " | " + "; ".join(reasons)).strip(" |")
             w.writerow(base)
