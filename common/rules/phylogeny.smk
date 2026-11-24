@@ -32,6 +32,73 @@ def _ref_fasta(wildcards):
     return [path] if os.path.exists(path) else []
 
 
+def _ref_count(fam):
+    # 1a: how many references the family's set carries, 0 when it has none
+    path = PHYLO.get("references", {}).get(fam, "")
+    if path and not os.path.isabs(path):
+        path = os.path.join(COMMON, path)
+    if not path or not os.path.exists(path):
+        return 0
+    with open(path) as fh:
+        return sum(1 for line in fh if line.startswith(">"))
+
+
+_TAXA_BOUND = {}
+_TAXA_SKIP_REPORTED = set()
+
+
+def _taxa_upper_bound(fam):
+    """Most taxa select_contigs could keep: confidence-passing candidates + refs.
+
+    Deliberately an upper bound -- the agreement, length and max_per_sample
+    filters only cut further -- so a family is dropped only when it cannot
+    reach min_taxa however those filters fall.
+    """
+    if fam in _TAXA_BOUND:
+        return _TAXA_BOUND[fam]
+    keep = set()
+    keep_path = INPUTS["contig_keep_list"]
+    if keep_path and os.path.exists(keep_path):
+        with open(keep_path) as fh:
+            for line in fh:
+                name = line.strip()
+                if name:
+                    keep.add(name.split("|")[-1])
+    n = 0
+    if os.path.exists(MASTER_META):
+        with open(MASTER_META, newline="") as fh:
+            for r in csv.DictReader(fh):
+                if (r.get("consensus_family") or "").strip() != fam:
+                    continue
+                if keep and (r.get("contig_id") or "").strip() not in keep:
+                    continue
+                n += 1
+    _TAXA_BOUND[fam] = n + _ref_count(fam)
+    return _TAXA_BOUND[fam]
+
+
+def tree_families():
+    """FAMILIES less those that cannot reach min_taxa.
+
+    select_scenario_contigs.py exits non-zero on a family it cannot tree, which
+    with --keep-going still leaves the stage reporting failure: Reoviridae, with
+    one candidate and no reference set, is why phylogeny_all failed on
+    2026-11-24. Dropping it from the target states that intent up front.
+    """
+    floor = int(PHYLO.get("min_taxa", 4))
+    if not os.path.exists(MASTER_META):
+        return list(FAMILIES)
+    keep, skip = [], []
+    for fam in FAMILIES:
+        (keep if _taxa_upper_bound(fam) >= floor else skip).append(fam)
+    if skip:
+        msg = ", ".join(f"{f} ({_taxa_upper_bound(f)})" for f in skip)
+        if msg not in _TAXA_SKIP_REPORTED:
+            _TAXA_SKIP_REPORTED.add(msg)
+            print(f"[families] phylogeny under min_taxa {floor}, skipped: {msg}")
+    return keep
+
+
 rule select_contigs:
     # 2: pick this scenario's contigs for the family, driven by master_metadata
     # (consensus_family), not by the FASTA header's sample-level family
@@ -165,5 +232,8 @@ rule tree_iqtree:
 
 rule phylogeny_all:
     input:
-        expand(SCENARIO_PHYLO_DIR + "/{fam}/tree.newick", fam=FAMILIES),
-        expand(SCENARIO_PHYLO_DIR + "/{fam}/selected.tsv", fam=FAMILIES),
+        # resolved at parse time, not through a lambda: rule
+        # figure_host_family_matrix reads rules.phylogeny_all.input and needs
+        # concrete paths there
+        expand(SCENARIO_PHYLO_DIR + "/{fam}/tree.newick", fam=tree_families()),
+        expand(SCENARIO_PHYLO_DIR + "/{fam}/selected.tsv", fam=tree_families()),

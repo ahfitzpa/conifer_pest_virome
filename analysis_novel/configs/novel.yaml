@@ -9,6 +9,12 @@ novel:
   # family to hardcode.
   families: []
 
+  # MSL41 carries neither name: Reoviridae was split into Sedoreoviridae and
+  # Spinareoviridae, and Adintoviridae is a proposed dsDNA family.
+  genome_composition:
+    Reoviridae: dsRNA
+    Adintoviridae: dsDNA
+
 # Envs resolved by get_env(): this pathway's envs/, then common/envs, then phase2.
 tools:
   COMMON_SEQTOOLS_ENV: common_seqtools.yaml

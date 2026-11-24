@@ -96,6 +96,12 @@ def _concat_taxa_upper_bound(fam, domains):
     return n
 
 
+def get_rna_family_list(wildcards):
+    families = get_family_list(wildcards)
+    rna = set(globals().get("RNA_FAMILIES") or families)
+    return [f for f in families if f in rna]
+
+
 def get_concat_families(wildcards):
     domains = PCFG.get("domains", {})
     fams = [f for f in get_family_list(wildcards) if f in domains]

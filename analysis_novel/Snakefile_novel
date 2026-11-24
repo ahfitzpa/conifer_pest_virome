@@ -140,6 +140,57 @@ print(f"[families] rdrp-marker subset (rules 09, 12): {len(MARKER_FAMILIES)}"
          "RdRp domain and are skipped" if len(MARKER_FAMILIES) < len(FAMILIES)
          else ""))
 
+# Only the RNA viruses get codon usage, genomic signatures, recombination and
+# genome maps; the dsDNA families keep the nucleotide phylogeny and nothing
+# else. Composition is read from the ICTV VMR rather than hand-listed, because
+# n_rdrp_domains cannot stand in for it: 90 families in this project's index
+# have no detected RdRp, and they include Coronaviridae, Hantaviridae and
+# Paramyxoviridae, which are RNA viruses whose RdRp simply was not hit here.
+# A name is resolved at family rank and then at the higher ranks this pathway
+# also names (Amarillovirales, Duplornaviricota and the like), and anything the
+# VMR cannot place is treated as RNA and reported, so a family is never
+# silently dropped from an analysis.
+_vmr_path = os.path.join(PHASE2, "references/vmr_msl41.tsv")
+_vmr_rows = []
+if os.path.exists(_vmr_path):
+    with open(_vmr_path, newline="") as fh:
+        _vmr_rows = list(csv.DictReader(fh, delimiter="\t"))
+
+
+def _vmr_composition(name):
+    for _rank in ("Family", "Order", "Class", "Phylum", "Subphylum",
+                  "Suborder", "Subclass"):
+        _counts = {}
+        for _r in _vmr_rows:
+            if (_r.get(_rank) or "").strip() == name:
+                _g = (_r.get("Genome") or "").strip()
+                _counts[_g] = _counts.get(_g, 0) + 1
+        if _counts:
+            return max(_counts, key=_counts.get)
+    return ""
+
+
+_COMPOSITION = dict(config.get("novel", {}).get("genome_composition") or {})
+RNA_FAMILIES, DNA_FAMILIES, _unplaced = [], [], []
+for _f in FAMILIES:
+    _g = (_COMPOSITION.get(_f) or _vmr_composition(_f) or "").upper()
+    if not _g:
+        _unplaced.append(_f)
+        RNA_FAMILIES.append(_f)
+    elif "RNA" in _g:
+        RNA_FAMILIES.append(_f)
+    else:
+        DNA_FAMILIES.append(_f)
+if not _vmr_rows and not _COMPOSITION:
+    RNA_FAMILIES, DNA_FAMILIES, _unplaced = list(FAMILIES), [], []
+print(f"[families] RNA {len(RNA_FAMILIES)}, DNA {len(DNA_FAMILIES)}"
+      + (f" (phylogeny only: {', '.join(sorted(DNA_FAMILIES))})"
+         if DNA_FAMILIES else ""))
+if _unplaced:
+    print("[families] WARNING: no VMR genome composition for "
+          + ", ".join(sorted(_unplaced))
+          + " -- treated as RNA; set novel: genome_composition: to be explicit")
+
 # Per-family ICTV genome sets for the shared nucleotide phylogeny, discovered
 # rather than listed: submit_fetch_refs.sh writes references/nt/<Family>_refs.fasta,
 # and hand-maintaining a 37-entry mapping would drift from it. Only Hepeviridae

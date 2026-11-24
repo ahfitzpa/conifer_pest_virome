@@ -168,4 +168,6 @@ rule figures_all:
         rules.figure_complex_heatmap.output,
         rules.figure_virome_breadth.output,
         rules.figure_host_convergence.output,
-        expand("figures/{fam}/{fam}_tree_linear.png", fam=FAMILIES)
+        # the DNA families keep their tree, so this follows phylogeny_all's
+        # family set rather than FAMILIES, which would ask for a skipped one
+        expand("figures/{fam}/{fam}_tree_linear.png", fam=tree_families())

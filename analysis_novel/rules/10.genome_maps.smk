@@ -65,6 +65,6 @@ rule genome_map_plot:
 rule genome_map_all:
     input:
         tables = lambda wc: expand(GM_DIR + "/{fam}/genome_map_data.tsv",
-                                   fam=get_family_list(wc)),
+                                   fam=get_rna_family_list(wc)),
         figures = lambda wc: expand("figures/{fam}/genome_map_{fam}.png",
-                                    fam=get_family_list(wc))
+                                    fam=get_rna_family_list(wc))

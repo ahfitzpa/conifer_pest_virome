@@ -140,4 +140,4 @@ rule recomb_summary:
 rule recomb_all:
     input:
         summaries = lambda wc: expand(REC_DIR + "/{fam}/recombination_summary.tsv",
-                                      fam=get_family_list(wc))
+                                      fam=get_rna_family_list(wc))
