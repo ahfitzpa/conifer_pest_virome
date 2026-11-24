@@ -185,8 +185,8 @@ rule plot_signatures:
 
 rule signatures_all:
     input:
-        expand(SIG_DIR + "/{fam}/site_selection.tsv", fam=RNA_FAMILIES),
-        expand(SIG_DIR + "/{fam}/selection_summary.tsv", fam=RNA_FAMILIES),
-        expand(SIG_DIR + "/{fam}/rscu.tsv", fam=RNA_FAMILIES),
-        expand(SIG_DIR + "/{fam}/dinucleotide_odds.tsv", fam=RNA_FAMILIES),
-        expand("figures/{fam}/signatures_{fam}.png", fam=RNA_FAMILIES),
+        expand(SIG_DIR + "/{fam}/site_selection.tsv", fam=rna_analysis_families()),
+        expand(SIG_DIR + "/{fam}/selection_summary.tsv", fam=rna_analysis_families()),
+        expand(SIG_DIR + "/{fam}/rscu.tsv", fam=rna_analysis_families()),
+        expand(SIG_DIR + "/{fam}/dinucleotide_odds.tsv", fam=rna_analysis_families()),
+        expand("figures/{fam}/signatures_{fam}.png", fam=rna_analysis_families()),

@@ -130,6 +130,6 @@ rule codon_align_orf1:
 
 rule codon_all:
     input:
-        expand(CODON_DIR + "/{fam}/orf1.codon.fasta", fam=RNA_FAMILIES),
-        expand(CODON_DIR + "/{fam}/orf1.codon.qc.tsv", fam=RNA_FAMILIES),
-        expand(CODON_DIR + "/{fam}/orf1_selection.tsv", fam=RNA_FAMILIES),
+        expand(CODON_DIR + "/{fam}/orf1.codon.fasta", fam=rna_analysis_families()),
+        expand(CODON_DIR + "/{fam}/orf1.codon.qc.tsv", fam=rna_analysis_families()),
+        expand(CODON_DIR + "/{fam}/orf1_selection.tsv", fam=rna_analysis_families()),

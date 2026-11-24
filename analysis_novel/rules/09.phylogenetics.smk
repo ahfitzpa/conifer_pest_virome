@@ -102,6 +102,18 @@ def get_rna_family_list(wildcards):
     return [f for f in families if f in rna]
 
 
+def rna_analysis_families():
+    """RNA families that also have enough taxa to be treed.
+
+    Rules 13 and 14 fan out at parse time and both consume select_contigs, so
+    they inherit phylogeny_all's floor: Reoviridae is an RNA family with one
+    candidate and no reference set, and asking codon_all for it failed the
+    stage on 2026-11-24 exactly as it failed phylogeny_all.
+    """
+    treeable = set(tree_families())
+    return [f for f in RNA_FAMILIES if f in treeable]
+
+
 def get_concat_families(wildcards):
     domains = PCFG.get("domains", {})
     fams = [f for f in get_family_list(wildcards) if f in domains]
