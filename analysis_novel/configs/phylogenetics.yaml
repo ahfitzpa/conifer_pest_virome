@@ -42,11 +42,12 @@ phylogenetics:
   domains:
     "Dicistroviridae": ["RNA-dependent RNA polymerase", "replicase", "helicase", "protease", "capsid"]
     "Iflaviridae": ["RNA-dependent RNA polymerase", "replicase", "helicase", "protease", "polyprotein"]
-    "Aliusviridae": ["RNA-directed RNA polymerase", "L protein", "nucleoprotein", "glycoprotein"]
-    "Chuviridae": ["RNA-directed RNA polymerase", "L protein", "nucleoprotein", "glycoprotein"]
+    "Aliusviridae": ["polymerase", "L protein", "nucleoprotein", "glycoprotein"]
+    "Chuviridae": ["polymerase", "L protein", "nucleoprotein", "glycoprotein"]
     "Phasmaviridae": ["RNA-dependent RNA polymerase", "L protein", "nucleoprotein", "glycoprotein"]
     "Orthomyxoviridae": ["RNA-directed RNA polymerase", "polymerase", "nucleoprotein", "glycoprotein"]
   concat_placeholder: "XXXXXXXXXX"
+  concat_min_taxa: 4
 
   # Diagnostic-residue analysis (task 3, Zhao Fig. 4 style).
   diagnostic_group_column: "group"       # column in taxa_metadata.tsv

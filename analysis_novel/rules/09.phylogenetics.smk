@@ -68,9 +68,55 @@ def get_marker_family_list(wildcards):
     return [f for f in families if f in marker]
 
 
+_CONCAT_TAXA_CACHE = {}
+_CONCAT_SKIP_SEEN = set()
+
+
+def _concat_taxa_upper_bound(fam, domains):
+    """Most taxa concat_prepare could yield for fam, from its static inputs."""
+    if fam in _CONCAT_TAXA_CACHE:
+        return _CONCAT_TAXA_CACHE[fam]
+    n = 0
+    # 1: candidates scoped exactly as concat_domains.py scopes them
+    cand = PCFG.get("candidates") or ""
+    if os.path.exists(cand):
+        with open(cand, newline="") as fh:
+            n += sum(1 for r in csv.DictReader(fh, delimiter="\t")
+                     if (r.get("assigned_family") or "").strip().lower()
+                     == fam.lower())
+    # 2: ICTV exemplars whose product carries one of the configured keywords
+    meta = PCFG.get("ictv_metadata") or ""
+    if os.path.exists(meta):
+        keys = [d.lower() for d in domains]
+        with open(meta, newline="") as fh:
+            n += sum(1 for r in csv.DictReader(fh, delimiter="\t")
+                     if (r.get("family") or "").strip().lower() == fam.lower()
+                     and any(k in (r.get("product") or "").lower() for k in keys))
+    _CONCAT_TAXA_CACHE[fam] = n
+    return n
+
+
 def get_concat_families(wildcards):
     domains = PCFG.get("domains", {})
-    return [f for f in get_family_list(wildcards) if f in domains]
+    fams = [f for f in get_family_list(wildcards) if f in domains]
+    cand = PCFG.get("candidates") or ""
+    meta = PCFG.get("ictv_metadata") or ""
+    # 3: with neither input readable, keep every family rather than analyse none
+    if not (os.path.exists(cand) or os.path.exists(meta)):
+        return fams
+    floor = int(PCFG.get("concat_min_taxa", 4))
+    keep, skip = [], []
+    for f in fams:
+        n = _concat_taxa_upper_bound(f, domains[f])
+        (keep if n >= floor else skip).append((f, n))
+    # 4: skip a family that cannot reach the floor, rather than failing the
+    #    stage when MAFFT is handed an empty or near-empty alignment
+    if skip:
+        msg = ", ".join(f"{f} ({n})" for f, n in skip)
+        if msg not in _CONCAT_SKIP_SEEN:
+            _CONCAT_SKIP_SEEN.add(msg)
+            print(f"[families] concat under min_taxa {floor}, skipped: {msg}")
+    return [f for f, _ in keep]
 
 
 # ---------------------------------------------------------------------------

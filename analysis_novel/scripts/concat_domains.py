@@ -91,17 +91,22 @@ def main() -> int:
             if cid not in rdrp_seqs or len(seq) > len(rdrp_seqs[cid]):
                 rdrp_seqs[cid] = seq
 
-    candidate_ids = {r.get("contig_id", "") for r in read_tsv(a.candidates)}
+    # 2: scope candidates to this family via phase2's assigned_family
+    candidate_ids = {(r.get("contig_id") or "").strip()
+                     for r in read_tsv(a.candidates)
+                     if (r.get("assigned_family") or "").strip().lower()
+                     == a.family.lower()}
     fragments = {}       # taxon -> {domain: seq}
     presence = []
 
-    # Candidate ORFs: annotation target is "<sample>|<contig>", FASTA header
-    # starts with that target; match by prefix.
+    # Candidate ORFs: target is "<sample>|<contig>_<start>_<end>_<strand>",
+    # and the ORF FASTA header starts with that target; match by prefix.
     by_target = {}
     for r in orf_rows:
         by_target.setdefault((r.get("target") or "").strip(), []).append(r)
     for target, rows in by_target.items():
-        cid = target.split("|")[-1]
+        # 1: strip MetaCerberus's _<start>_<end>_<strand> ORF suffix
+        cid = re.sub(r"_\d+_\d+_[+-]$", "", target.split("|")[-1])
         if cid and cid not in candidate_ids:
             continue
         seq = next((s for h, s in orf_seqs.items() if h.startswith(target)), None)
@@ -120,7 +125,7 @@ def main() -> int:
                                        for d in picked):
             for d in domains:
                 if "polymerase" in d.lower() or "rdrp" in d.lower() or "L protein" in d:
-                    fragments[cid][d] = rdrp_seqs[cid]
+                    fragments.setdefault(cid, {})[d] = rdrp_seqs[cid]
                     break
 
     # ICTV exemplars: metadata 'product' column, family filter.
