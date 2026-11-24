@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --exclude=sonic59
 #SBATCH --job-name=conifer_figures
 #SBATCH --output=logs/figures_%j.log
 #SBATCH --error=logs/figures_%j.err
@@ -26,7 +27,7 @@ source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
  --latency-wait 300 --use-conda --conda-prefix .snakemake/conda \
  --conda-frontend conda --rerun-incomplete --rerun-triggers mtime --keep-going \
- --default-resources slurm_partition=shared runtime=180 mem_mb=0"
+ --default-resources slurm_partition=shared runtime=180 mem_mb=0 slurm_extra='--exclude=sonic59'"
 
 echo "[figures] $(date): figures_all"
 snakemake -s Snakefile_novel $SNAKE_OPTS -- figures_all

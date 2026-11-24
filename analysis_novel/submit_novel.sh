@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --exclude=sonic59
 #SBATCH --job-name=conifer_novel
 #SBATCH --output=logs/novel_%j.log
 #SBATCH --error=logs/novel_%j.err
@@ -37,7 +38,7 @@ done
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
  --latency-wait 300 --use-conda --conda-prefix .snakemake/conda \
  --conda-frontend conda --rerun-incomplete --rerun-triggers mtime --keep-going \
- --default-resources slurm_partition=shared runtime=180 mem_mb=0"
+ --default-resources slurm_partition=shared runtime=180 mem_mb=0 slurm_extra='--exclude=sonic59'"
 
 # Every target is passed after `--`. Without it, --default-resources (and
 # --quiet) swallow the target: that is why phase3's submit_phase3.sh failed all

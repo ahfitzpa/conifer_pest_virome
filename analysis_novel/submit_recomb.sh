@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --exclude=sonic59
 #SBATCH --job-name=conifer_recomb
 #SBATCH --output=logs/recomb_%j.log
 #SBATCH --error=logs/recomb_%j.err
@@ -24,7 +25,7 @@ source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
  --latency-wait 300 --use-conda --conda-prefix .snakemake/conda \
  --conda-frontend conda --rerun-incomplete --rerun-triggers mtime --keep-going \
- --default-resources slurm_partition=shared runtime=180 mem_mb=0"
+ --default-resources slurm_partition=shared runtime=180 mem_mb=0 slurm_extra='--exclude=sonic59'"
 
 # 3. recomb_prepare reruns on its own: its outputs are renamed (.fasta, candidates.txt).
 echo "[recomb] $(date): recomb_all"

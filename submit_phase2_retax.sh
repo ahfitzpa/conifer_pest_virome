@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --exclude=sonic59
 #SBATCH --job-name=phase2_retax
 #SBATCH --output=logs/phase2_retax_%j.log
 #SBATCH --error=logs/phase2_retax_%j.err
@@ -37,7 +38,7 @@ source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
  --latency-wait 300 --use-conda --conda-prefix .snakemake/conda \
  --conda-frontend conda --rerun-incomplete --rerun-triggers mtime --keep-going \
- --default-resources slurm_partition=shared runtime=180 mem_mb=0"
+ --default-resources slurm_partition=shared runtime=180 mem_mb=0 slurm_extra='--exclude=sonic59'"
 
 # 1: force the consensus and everything downstream of it
 snakemake -s Snakefile_phase2 $SNAKE_OPTS \

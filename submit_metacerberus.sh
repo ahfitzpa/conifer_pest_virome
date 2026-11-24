@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --exclude=sonic59
 #SBATCH --job-name=conifer_metac
 #SBATCH --output=logs/metac_%j.log
 #SBATCH --error=logs/metac_%j.err
@@ -32,7 +33,7 @@ CHROME="/scratch/fitzpatria_sh/chrome/chrome-linux64/chrome"
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
  --latency-wait 300 --use-conda --conda-prefix .snakemake/conda \
  --conda-frontend conda --rerun-incomplete --rerun-triggers mtime --keep-going \
- --default-resources slurm_partition=shared runtime=180 mem_mb=0"
+ --default-resources slurm_partition=shared runtime=180 mem_mb=0 slurm_extra='--exclude=sonic59'"
 
 echo "[metac] $(date): results/annotation/metacerberus"
 PHASE2_ALLOW_PARTIAL_MASTER=true snakemake -s Snakefile_phase2 $SNAKE_OPTS \
