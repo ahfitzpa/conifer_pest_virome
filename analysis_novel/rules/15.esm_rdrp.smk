@@ -136,9 +136,14 @@ rule esm_rdrp_foldseek_rdrp:
             exit 0
         fi
         if [ ! -e "{params.db}" ] && [ ! -e "{params.db}.dbtype" ]; then
-            echo "[foldseek_rdrp] ERROR: Foldseek DB not found at {params.db}" > "{log}"
-            echo "Run: foldseek databases PDB {params.db} {params.tmpdir}" >> "{log}"
-            exit 1
+            if [ "${{SETUP_PDB_DB:-0}}" = "1" ]; then
+                mkdir -p "$(dirname "{params.db}")" "{params.tmpdir}_dl"
+                foldseek databases PDB "{params.db}" "{params.tmpdir}_dl" --threads {threads} > "{log}" 2>&1
+            else
+                echo "[foldseek_rdrp] ERROR: Foldseek DB not found at {params.db}" > "{log}"
+                echo "Re-run with SETUP_PDB_DB=1 or run: foldseek databases PDB {params.db} {params.tmpdir}" >> "{log}"
+                exit 1
+            fi
         fi
         foldseek easy-search \
             "{params.pdb_dir}" \

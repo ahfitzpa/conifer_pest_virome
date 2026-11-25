@@ -37,20 +37,14 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${REPO_ROOT}/.cache}"
 export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
+export SETUP_PDB_DB="${SETUP_PDB_DB:-0}"
 FOLDSEEK_DB="${FOLDSEEK_DB:-${REPO_ROOT}/references/foldseek/pdb}"
 
 echo "[esm_rdrp] Host: $(hostname)"
 echo "[esm_rdrp] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+echo "[esm_rdrp] FOLDSEEK_DB=${FOLDSEEK_DB} (SETUP_PDB_DB=${SETUP_PDB_DB})"
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
-fi
-
-if [ "${SETUP_PDB_DB:-0}" = "1" ] && [ ! -e "${FOLDSEEK_DB}.dbtype" ]; then
-    echo "[esm_rdrp] Downloading Foldseek PDB database -> ${FOLDSEEK_DB}"
-    mkdir -p "${ANALYSIS_DIR}/tmp/foldseek_db_dl"
-    conda run --no-capture-output -n "${ESM_RDRP_CONDA_ENV:-esm_rdrp}" \
-        foldseek databases PDB "${FOLDSEEK_DB}" "${ANALYSIS_DIR}/tmp/foldseek_db_dl" \
-        --threads "${SLURM_CPUS_PER_TASK:-8}"
 fi
 
 snakemake \
