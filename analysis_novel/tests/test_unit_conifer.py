@@ -37,6 +37,16 @@ class TestRepositoryReproducibility(unittest.TestCase):
         ref_path = REPO_ROOT / "references"
         self.assertFalse(ref_path.is_symlink(), "Dangling personal symlink 'references' should not exist")
 
+    def test_all_python_scripts_compile_cleanly(self) -> None:
+        import py_compile
+        py_files = [
+            p for p in REPO_ROOT.rglob("*.py")
+            if ".git" not in p.parts and "__pycache__" not in p.parts
+        ]
+        self.assertGreater(len(py_files), 10)
+        for p in py_files:
+            py_compile.compile(str(p), doraise=True)
+
 
 if __name__ == "__main__":
     unittest.main()
