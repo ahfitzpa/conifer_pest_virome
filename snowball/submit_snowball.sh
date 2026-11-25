@@ -64,8 +64,12 @@ fi
 
 echo "[snowball] Step 2: Launching general Phase 2 workflow on ${MANIFEST_NEW}"
 cd "${REPO_ROOT}"
+PHASE2_SNAKEFILE="${PHASE2_SNAKEFILE:-Snakefile_phase2}"
+if [ ! -f "${PHASE2_SNAKEFILE}" ] && [ -f "Snakefile" ]; then
+    PHASE2_SNAKEFILE="Snakefile"
+fi
 snakemake \
-    -s Snakefile \
+    -s "${PHASE2_SNAKEFILE}" \
     --executor slurm \
     --slurm-no-account \
     --jobs 20 \
