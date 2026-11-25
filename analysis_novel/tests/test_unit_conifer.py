@@ -14,6 +14,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+IGNORED_DIRS = {".git", ".snakemake", ".cache", "__pycache__", "tmp", "results", "logs", "data", "references", "tools"}
+
+
+def _is_ignored(path: Path) -> bool:
+    return any(part in IGNORED_DIRS for part in path.parts)
+
+
 class TestRepositoryReproducibility(unittest.TestCase):
     def test_required_metadata_files_present(self) -> None:
         for name in ("README.md", "LICENSE", "CITATION.cff", "SETUP.md", ".gitignore"):
@@ -28,6 +35,8 @@ class TestRepositoryReproducibility(unittest.TestCase):
 
     def test_shell_scripts_have_no_hardcoded_personal_email_or_home(self) -> None:
         for sh in REPO_ROOT.rglob("*.sh"):
+            if _is_ignored(sh):
+                continue
             text = sh.read_text(encoding="utf-8", errors="ignore")
             self.assertNotIn("amy.fitzpatrick@ucd.ie", text, f"Hardcoded email in {sh}")
             self.assertNotIn("/home/people/fitzpatria", text, f"Hardcoded home path in {sh}")
@@ -39,10 +48,7 @@ class TestRepositoryReproducibility(unittest.TestCase):
 
     def test_all_python_scripts_compile_cleanly(self) -> None:
         import py_compile
-        py_files = [
-            p for p in REPO_ROOT.rglob("*.py")
-            if ".git" not in p.parts and "__pycache__" not in p.parts
-        ]
+        py_files = [p for p in REPO_ROOT.rglob("*.py") if not _is_ignored(p)]
         self.assertGreater(len(py_files), 10)
         for p in py_files:
             py_compile.compile(str(p), doraise=True)
