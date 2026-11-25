@@ -49,10 +49,16 @@ RT_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+NON_RDRP_VIRAL_PATTERNS = re.compile(
+    r"(capsid|coat\s+protein|envelope|glycoprotein|nucleocapsid|matrix\s+protein|"
+    r"protease|helicase|methyltransferase|spliceosom|deah-box|dead-box|ribosom)",
+    re.IGNORECASE,
+)
+
 RDRP_PATTERNS = re.compile(
     r"(rna-dependent\s+rna\s+polymerase|rna-directed\s+rna\s+polymerase|"
     r"\brdrp\b|replicase|polyprotein|nsp12|ns5\b|ns5b|pb1\b|3dpol|"
-    r"l\s+protein|large\s+structural\s+protein|viral\s+polymerase|vp1\b)",
+    r"l\s+protein|large\s+structural\s+protein|viral\s+polymerase)",
     re.IGNORECASE,
 )
 
@@ -94,6 +100,8 @@ def classify_target_header(header: str) -> str:
         return "rt"
     if RDRP_PATTERNS.search(header):
         return "rdrp"
+    if NON_RDRP_VIRAL_PATTERNS.search(header):
+        return "other"
     return "other"
 
 
