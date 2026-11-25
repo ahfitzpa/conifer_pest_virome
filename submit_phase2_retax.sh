@@ -25,8 +25,8 @@ mkdir -p logs tmp
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 # Required, not decorative: without conda.sh the per-rule `conda activate` does
 # not update PATH, so a rule's `python` is the base Anaconda interpreter. That
 # has pandas but not Biopython, and all 21 collect_viral_positives jobs died on

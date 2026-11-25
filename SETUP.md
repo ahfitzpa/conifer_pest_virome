@@ -35,7 +35,6 @@ taxonomy (replaced by Kraken2 + geNomad + RdRpCATCH on 2026-11-02 — see
 ## Quick start
 
 ```bash
-cd workflow/phase2
 ./setup_databases.sh /path/to/database/root
 ```
 

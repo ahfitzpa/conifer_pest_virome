@@ -5,11 +5,10 @@ channels:
 dependencies:
   # OpenRDP 0.1.0 requires numpy < 2 and cannot share an environment with the
   # main numpy-2 stack (same constraint as CaliciTyper's separate venv).
-  # OpenRDP is not published on PyPI; install from PoonLab/OpenRDP on GitHub.
   - python=3.11
   - numpy=1.26.4
   - scipy>=1.5.0
   - h5py>=3.8.0,<3.11.0
   - pip
   - pip:
-      - https://github.com/PoonLab/OpenRDP/archive/refs/heads/master.tar.gz
+      - https://github.com/PoonLab/OpenRDP/archive/b42d9e5fb84c14e817e08aab2668aeb2c6a94f83.tar.gz

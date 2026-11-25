@@ -1,0 +1,86 @@
+paths:
+  references: references
+  # Scratch tmp dir for rules that need node/job-local working space
+  # (geNomad, CheckV). Kept inside the workflow dir on the scratch filesystem
+  # rather than node-local /tmp, which is small/shared and fills up under
+  # concurrent jobs.
+  tmp: tmp
+  # Normalised per-sample reads (rules/01.input.smk output) and the shared
+  # raw-SRA download cache it stages from.
+  reads_dir: data/01.reads
+  sra_cache: data/00.shared_sra
+
+# Top-level (not under metadata:) because rules/01.input.smk reads this via
+# config.get("manifest", ...) directly.
+manifest: data/intake/manifest.csv
+# Set true to keep data/00.shared_sra's raw downloads around after staging
+# (rules/01.input.smk wraps them in temp() and auto-deletes once the last
+# consumer finishes unless this is set).
+keep_sra_cache: false
+
+database:
+  host: serratus-aurora-20210406.cluster-ro-ccz9y6yshbls.us-east-1.rds.amazonaws.com
+  name: summary
+  user: public_reader
+  password: serratus
+
+tools:
+  ASSEMBLY_ENV: env_phase2_assembly.yaml
+  RNAVIRAL_ASSEMBLY_ENV: env_rnaviral_assembly.yaml
+  TAX_CORE_ENV: tax_core.yaml
+  TAX_QC_ENV: tax_qc.yaml  # Removed the 'rules/' prefix
+  META_ENV: metacerberus.yaml
+  GENOMAD_ENV: genomad.yaml
+  LONGREAD_QC_ENV: env_longread_qc.yaml
+  LONGREAD_HOSTREMOVAL_ENV: env_longread_hostremoval.yaml
+  LONGREAD_ASSEMBLY_ENV: env_longread_assembly.yaml
+  MEDAKA_ENV: env_medaka.yaml
+  # Phase 3 envs: phase3/Snakefile_phase3 reads this tools: block from here.
+  PHYLO_ENV: env_phylo.yaml
+  PHYLO_PLOT_ENV: env_phylo_plot.yaml
+  GENOME_MAPS_ENV: env_genome_maps.yaml
+  # RECOMB_ENV, not REC_ENV: SNAKEFILE_INTEGRATION.md names it REC_ENV, but
+  # rules/11.recombination.smk calls get_env("RECOMB_ENV") -- following the doc
+  # verbatim raises KeyError: 'RECOMB_ENV' at DAG build.
+  RECOMB_ENV: env_recomb.yaml         # HyPhy 2.5.104
+  OPENRDP_ENV: env_openrdp.yaml       # numpy<2 + openrdp==0.1.0, kept separate
+  DEMARCATION_ENV: env_demarcation.yaml
+
+# Absolute so every rule resolves the same physical databases regardless
+# of which phase2 checkout invokes them (this one, deer_virome's, or any
+# future clone), installed once here rather than duplicated per checkout.
+databases:
+  # Three-tool taxonomy (rules/04.taxonomy.smk), alongside rdrp_catch_hmm.
+  kraken2_db: "/path/to/databases/kraken2_viral_db"
+  genomad_db: "/path/to/databases/genomad_db_dl/genomad_db"
+  rdrp_catch_hmm: "/path/to/databases/rdrpcatch_db"
+  virsorter2_db: "/path/to/databases/virsorter2_db"
+  checkv_db: "/path/to/databases/checkv_db"
+  metacerberus: "/path/to/databases/metacerberus"
+
+# Source for setup_kraken2 (only used if kraken2_db above is empty).
+kraken2_db_url: "https://genome-idx.s3.amazonaws.com/kraken/k2_viral_20260626.tar.gz"
+
+# rules/06.annotation.smk
+annotation:
+  # Every taxonomy-tool positive at least this long is annotated.
+  min_contig_len: 1000
+  # --hmm takes HMM file stems; --download takes the group names those
+  # files ship in (metacerberus.py --list-db). Keep the two in step.
+  metacerberus_hmm: ["KOFam_all", "VOG", "PHROG"]
+  metacerberus_download: ["KOFam", "VOG", "PHROG"]
+
+metadata:
+  # These runs came straight from SRA, not a Serratus phase1 shortlist, so the
+  # manifest stands in: build_master_database only keeps run_id/scientificname/
+  # bioproject (+ optional sotu/palm_id/tax_family, absent here) from it.
+  shortlist: "data/intake/manifest.csv"
+# Headless Chrome for kaleido, used by MetaCerberus STEP 10 (report figures).
+# kaleido >=1 dropped its bundled chromium and requires an external browser;
+# plotly 7 requires kaleido >=1 (the v0 scope API is gone), conda-forge has no
+# chromium package, and this cluster has no system browser -- so MetaCerberus
+# died at STEP 10 with ChromeNotFoundError after completing ORF calling and the
+# HMMER search. Downloaded once with `kaleido_get_chrome --path`, kept on shared
+# scratch so it survives conda env rebuilds and both workflows share it.
+# Exported as BROWSER_PATH by run_metacerberus; choreographer reads that var.
+chrome_binary: "/path/to/databases/chrome/chrome-linux64/chrome"

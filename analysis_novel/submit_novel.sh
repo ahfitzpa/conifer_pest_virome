@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=2-00:00:00
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #
 # Scheduler only: every rule is submitted as its own SLURM job via
 # --executor slurm. Pass NOVEL_MANIFEST to run a different sample set, e.g.
@@ -19,8 +18,8 @@ mkdir -p logs tmp
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 
 if [ -n "${PHASE2_DIR:-}" ]; then

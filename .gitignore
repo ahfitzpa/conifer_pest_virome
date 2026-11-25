@@ -10,10 +10,21 @@ tmp/
 tmp-hydra/
 tools/
 .snakemake/
+.cache/
 
-# Reports and backups
+# Reports, logs, scratchpads, and compiled documents
 report_phase2.html
 report_phase3.html
+*.log
+*.out
+*.pdf
+*.docx
+*.pptx
+todo.md
+rst
+rst1
+rub
+2NG.*
 *.bak
 *.bak_*
 
