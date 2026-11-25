@@ -1,0 +1,51 @@
+# Configuration for the RdRp -> Serratus snowball side workflow.
+# Discovers additional SRA runs carrying sister lineages to structurally
+# validated novel RdRps (Stage 15 ESM-RdRp) and builds a Phase 2 manifest
+# ready to feed directly into the general Phase 2 + analysis_novel workflow.
+
+inputs:
+  esm_validation_tsv: "../analysis_novel/results/esm_rdrp/esm_rdrp_validation.tsv"
+  esm_selected_faa: "../analysis_novel/results/esm_rdrp/selected_divergent_rdrp.faa"
+  existing_manifest: "../data/intake/manifest.csv"
+  verdicts:
+    - "validated_rdrp_high"
+    - "validated_rdrp_moderate"
+
+palmdb:
+  # Optional local PalmDB amino-acid FASTA (if absent and auto_download=true,
+  # fetched once into ../references/palmdb/palmdb_rdrp_seqs.fa).
+  fasta: "../references/palmdb/palmdb_rdrp_seqs.fa"
+  url: "https://raw.githubusercontent.com/rcedgar/palmdb/main/2021-03-14/palmdb_rdrp_seqs.fa"
+  auto_download: true
+  min_pident: 40.0
+  max_evalue: 1.0e-5
+  max_sotus_per_query: 10
+
+database:
+  # Public read-only Serratus PostgreSQL RDS (same as Phase 1)
+  host: "serratus-aurora-20210406.cluster-ro-ccz9y6yshbls.us-east-1.rds.amazonaws.com"
+  name: "summary"
+  user: "public_reader"
+  # Override via SERRATUS_DB_PASSWORD env var if desired
+  password: "serratus"
+
+filtering:
+  # Also include sOTUs directly linked to our seed runs in Serratus palm_sra2
+  # as a fallback/complement to DIAMOND PalmDB hits
+  include_seed_run_sotus: true
+  # Optional regex restricting candidate SRA hosts (leave "" for open-host snowball)
+  # Example conifer-pest filter: "(Ips|Dendroctonus|Hylobius|Pissodes|Tomicus|Scolytus|Curculionidae|Coleoptera)"
+  host_regex: "(Ips|Dendroctonus|Hylobius|Pissodes|Tomicus|Scolytus|Curculionidae|Coleoptera)"
+  min_coverage: 10
+  min_run_pident: 50.0
+  paired_only: true
+  illumina_only: true
+  exclude_cell_culture: true
+  max_size_mb: 8000
+  max_runs_per_bioproject: 4
+  max_total_runs: 12
+  scenario_label: "snowball_rdrp"
+  default_family_label: "Snowball_RdRp"
+
+output:
+  dir: "results/snowball"
