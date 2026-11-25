@@ -176,9 +176,10 @@ def fold_sequences(
         has_cuda = torch.cuda.is_available()
         if not has_cuda and not allow_cpu:
             raise RuntimeError(
-                "CUDA GPU is required for local ESMFold on Sonic GPU nodes, "
-                "but torch.cuda.is_available() is False. Submit to a GPU "
-                "partition (e.g., --gres=gpu:1) or pass --allow-cpu for testing."
+                f"CUDA GPU is required for local ESMFold on Sonic GPU nodes, "
+                f"but torch.cuda.is_available() is False "
+                f"(torch={torch.__version__}, torch.version.cuda={torch.version.cuda}). "
+                f"Submit to a GPU partition (e.g., --gres=gpu:1) or pass --allow-cpu for testing."
             )
 
         device = torch.device("cuda" if has_cuda else "cpu")

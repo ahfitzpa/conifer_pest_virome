@@ -1,22 +1,21 @@
 # Conda environment for GPU ESMFold + Foldseek structural RdRp validation
-# (rule 15.esm_rdrp.smk). Uses HuggingFace transformers' pure-PyTorch
-# EsmForProteinFolding implementation (facebook/esmfold_v1) to avoid fragile
-# openfold C++ CUDA extension builds on HPC clusters.
+# (rule 15.esm_rdrp.smk). Installs CUDA 12.1 PyTorch wheels via PyTorch's
+# official pip index so Conda cannot silently resolve a CPU-only pytorch build.
 name: esm_rdrp
 channels:
-  - pytorch
-  - nvidia
   - bioconda
   - conda-forge
   - defaults
 dependencies:
   - python>=3.10,<3.12
-  - pytorch>=2.1
-  - pytorch-cuda=12.1
-  - transformers>=4.38,<5.0
-  - accelerate>=0.27
-  - safetensors
-  - sentencepiece
+  - pip
   - numpy<2.0
   - biopython>=1.81
   - foldseek>=9.427df8a
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - torch==2.4.1+cu121
+      - transformers>=4.38,<5.0
+      - accelerate>=0.27
+      - safetensors
+      - sentencepiece
