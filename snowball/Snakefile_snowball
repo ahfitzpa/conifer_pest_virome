@@ -1,0 +1,147 @@
+# =============================================================================
+# Side Workflow: Validated Novel RdRp -> PalmDB/Serratus Snowball -> Phase 2
+# =============================================================================
+# 1. Extracts structurally validated novel RdRp proteins from Stage 15 ESM-RdRp
+# 2. Matches them against PalmDB via DIAMOND blastp to identify Serratus sOTUs
+# 3. Queries Serratus RDS (palm_sra2 + srarun) for high-coverage, paired-end
+#    Illumina SRA runs carrying sister lineages (excluding already-run samples)
+# 4. Emits a Phase 2 manifest (`results/snowball/manifest_snowball.csv`) ready
+#    to feed directly into the general Phase 2 + analysis_novel workflow.
+#
+# Run discovery only (safe preview before downloading reads):
+#   snakemake -s Snakefile_snowball --use-conda --cores 4 snowball_discover
+# =============================================================================
+
+import os
+
+configfile: "configs/snowball.yaml"
+
+INP = config.get("inputs", {})
+PDB = config.get("palmdb", {})
+OUT_DIR = config.get("output", {}).get("dir", "results/snowball")
+ENV_SNOWBALL = "envs/env_snowball.yaml"
+
+
+rule snowball_discover:
+    input:
+        faa        = f"{OUT_DIR}/validated_novel_rdrps.faa",
+        candidates = f"{OUT_DIR}/snowball_candidate_runs.tsv",
+        manifest   = f"{OUT_DIR}/manifest_snowball.csv",
+        combined   = f"{OUT_DIR}/manifest_combined.csv",
+
+
+rule extract_validated_rdrps:
+    """Pull structurally validated novel RdRp proteins from Stage 15 ESM-RdRp."""
+    input:
+        validation = INP["esm_validation_tsv"],
+        selected   = INP["esm_selected_faa"],
+    output:
+        faa = f"{OUT_DIR}/validated_novel_rdrps.faa",
+        tsv = f"{OUT_DIR}/validated_novel_rdrps.tsv",
+    params:
+        verdicts = ",".join(INP.get("verdicts", ["validated_rdrp_high", "validated_rdrp_moderate"])),
+    log:
+        "logs/snowball/extract_validated_rdrps.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) $(dirname {output.faa})
+        python3 scripts/extract_validated_rdrps.py \
+            --validation-tsv "{input.validation}" \
+            --selected-faa "{input.selected}" \
+            --verdicts "{params.verdicts}" \
+            --out-faa "{output.faa}" \
+            --out-tsv "{output.tsv}" \
+            > "{log}" 2>&1
+        """
+
+
+rule match_palmdb:
+    """Map validated novel RdRps to PalmDB sOTU IDs via DIAMOND blastp."""
+    input:
+        faa = f"{OUT_DIR}/validated_novel_rdrps.faa",
+    output:
+        hits = f"{OUT_DIR}/palmdb_hits.tsv",
+    params:
+        palmdb_faa    = PDB.get("fasta", "../references/palmdb/palmdb_rdrp_seqs.fa"),
+        palmdb_url    = PDB.get("url", ""),
+        auto_download = "1" if PDB.get("auto_download", True) else "0",
+        max_evalue    = float(PDB.get("max_evalue", 1e-5)),
+        min_pident    = float(PDB.get("min_pident", 40.0)),
+    threads: 4
+    conda:
+        ENV_SNOWBALL
+    log:
+        "logs/snowball/match_palmdb.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "$(dirname "{params.palmdb_faa}")"
+        if [ ! -s "{input.faa}" ]; then
+            : > "{output.hits}"
+            echo "[match_palmdb] Empty query FASTA; skipping DIAMOND." > "{log}"
+            exit 0
+        fi
+        if [ ! -s "{params.palmdb_faa}" ] && [ "{params.auto_download}" = "1" ] && [ -n "{params.palmdb_url}" ]; then
+            echo "[match_palmdb] Downloading PalmDB FASTA -> {params.palmdb_faa}" > "{log}"
+            curl -fsSL --retry 3 "{params.palmdb_url}" -o "{params.palmdb_faa}.tmp" >> "{log}" 2>&1 || true
+            if [ -s "{params.palmdb_faa}.tmp" ]; then
+                mv "{params.palmdb_faa}.tmp" "{params.palmdb_faa}"
+            else
+                rm -f "{params.palmdb_faa}.tmp"
+            fi
+        fi
+        if [ ! -s "{params.palmdb_faa}" ]; then
+            : > "{output.hits}"
+            echo "[match_palmdb] PalmDB FASTA unavailable; continuing with seed-run sOTU snowball." >> "{log}"
+            exit 0
+        fi
+        DB_PREFIX="{params.palmdb_faa}.dmnd"
+        if [ ! -s "${{DB_PREFIX}}" ]; then
+            diamond makedb --in "{params.palmdb_faa}" -d "{params.palmdb_faa}" >> "{log}" 2>&1
+        fi
+        diamond blastp \
+            --query "{input.faa}" \
+            --db "${{DB_PREFIX}}" \
+            --out "{output.hits}" \
+            --outfmt 6 qseqid sseqid pident length evalue bitscore \
+            --evalue {params.max_evalue} \
+            --id {params.min_pident} \
+            --sensitive \
+            --max-target-seqs 25 \
+            --threads {threads} \
+            >> "{log}" 2>&1
+        """
+
+
+rule serratus_snowball_manifest:
+    """Query Serratus RDS for sister-lineage SRA runs and emit Phase 2 manifest."""
+    input:
+        validated = f"{OUT_DIR}/validated_novel_rdrps.tsv",
+        hits      = f"{OUT_DIR}/palmdb_hits.tsv",
+    output:
+        candidates = f"{OUT_DIR}/snowball_candidate_runs.tsv",
+        manifest   = f"{OUT_DIR}/manifest_snowball.csv",
+        combined   = f"{OUT_DIR}/manifest_combined.csv",
+    params:
+        cfg      = "configs/snowball.yaml",
+        existing = INP.get("existing_manifest", "../data/intake/manifest.csv"),
+    conda:
+        ENV_SNOWBALL
+    log:
+        "logs/snowball/serratus_snowball.log",
+    shell:
+        """
+        mkdir -p $(dirname {log})
+        EXISTING_ARG=""
+        if [ -s "{params.existing}" ]; then
+            EXISTING_ARG="--existing-manifest {params.existing}"
+        fi
+        python3 scripts/serratus_snowball.py \
+            --config "{params.cfg}" \
+            --palmdb-hits "{input.hits}" \
+            --validated-tsv "{input.validated}" \
+            $EXISTING_ARG \
+            --out-candidates "{output.candidates}" \
+            --out-manifest "{output.manifest}" \
+            --out-combined "{output.combined}" \
+            > "{log}" 2>&1
+        """
