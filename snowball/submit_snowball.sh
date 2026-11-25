@@ -68,17 +68,19 @@ PHASE2_SNAKEFILE="${PHASE2_SNAKEFILE:-Snakefile_phase2}"
 if [ ! -f "${PHASE2_SNAKEFILE}" ] && [ -f "Snakefile" ]; then
     PHASE2_SNAKEFILE="Snakefile"
 fi
+export PHASE2_MANIFEST_OVERRIDE="${MANIFEST_NEW}"
 snakemake \
     -s "${PHASE2_SNAKEFILE}" \
     --executor slurm \
     --slurm-no-account \
-    --jobs 20 \
+    --jobs 12 \
     --cores 32 \
     --latency-wait 300 \
     --use-conda \
     --conda-prefix .snakemake/conda \
     --conda-frontend "${CONDA_FRONTEND:-conda}" \
     --rerun-incomplete \
+    --rerun-triggers mtime \
     --default-resources slurm_partition=shared runtime=240 mem_mb=0 \
     --config "manifest=${MANIFEST_NEW}"
 
