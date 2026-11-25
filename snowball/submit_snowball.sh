@@ -3,7 +3,7 @@
 #SBATCH --partition=shared
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=0-04:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --output=logs/snowball_%j.out
 #SBATCH --error=logs/snowball_%j.err
 #
