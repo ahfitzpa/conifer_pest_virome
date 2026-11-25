@@ -40,6 +40,17 @@ export OMP_NUM_THREADS=1
 export SETUP_PDB_DB="${SETUP_PDB_DB:-0}"
 FOLDSEEK_DB="${FOLDSEEK_DB:-${REPO_ROOT}/references/foldseek/pdb}"
 
+if command -v module >/dev/null 2>&1; then
+    module purge || true
+    module load snakemake/8.30.0 || true
+fi
+export SNAKEMAKE_CONDA_FRONTEND="${CONDA_FRONTEND:-conda}"
+if command -v conda >/dev/null 2>&1; then
+    # shellcheck disable=SC1091
+    source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
+    conda deactivate 2>/dev/null || true
+fi
+
 echo "[esm_rdrp] Host: $(hostname)"
 echo "[esm_rdrp] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
 echo "[esm_rdrp] FOLDSEEK_DB=${FOLDSEEK_DB} (SETUP_PDB_DB=${SETUP_PDB_DB})"
@@ -50,9 +61,10 @@ fi
 snakemake \
     -s Snakefile_novel \
     --use-conda \
-    --conda-frontend "${CONDA_FRONTEND:-mamba}" \
+    --conda-prefix .snakemake/conda \
+    --conda-frontend "${CONDA_FRONTEND:-conda}" \
     --cores "${SLURM_CPUS_PER_TASK:-8}" \
     --resources gpu=1 \
     --rerun-incomplete \
     --config "esm_rdrp={enabled: true, foldseek_db: '${FOLDSEEK_DB}', hf_cache_dir: '${HF_HOME}'}" \
-    esm_rdrp_all
+    -- esm_rdrp_all
