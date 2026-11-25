@@ -15,6 +15,7 @@ tools:
   ORF_TOOLS_ENV: env_orf_tools.yaml
   SCENARIO_PHYLO_ENV: env_phylogeny.yaml
   GENOMIC_SIGNATURES_ENV: env_genomic_signatures.yaml
+  ESM_RDRP_ENV: env_esm_rdrp.yaml
 
 phylogeny:
   # No single genome size applies across 25 families, so the cap is generous
@@ -23,3 +24,23 @@ phylogeny:
   min_length: 1000
   max_length: 0
   min_taxa: 4
+
+# Stage 15: GPU ESMFold + Foldseek structural validation for medium/high
+# confidence novel viruses that are deeply divergent (<40% aa identity to
+# ICTV/nr) or family-unresolved RdRp-positive contigs (>=200 aa).
+# Opt-in inside novel_all (set enabled: true) or run directly via esm_rdrp_all.
+esm_rdrp:
+  enabled: false
+  out_dir: "results/esm_rdrp"
+  keep_confidence: "high,medium"
+  min_aa_len: 200
+  max_aa_len: 800
+  max_identity_pct: 40.0
+  include_unresolved: true
+  model_name: "facebook/esmfold_v1"
+  chunk_size: 64
+  hf_cache_dir: ""
+  foldseek_db: "../references/foldseek/pdb"
+  foldseek_rt_db: ""
+  dedicated_rdrp_db: false
+  foldseek_evalue: 0.01

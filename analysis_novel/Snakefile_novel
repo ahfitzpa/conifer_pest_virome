@@ -160,6 +160,7 @@ include: "rules/11.recombination.smk"
 include: "rules/12.demarcation.smk"
 include: "rules/13.codon_alignments.smk"
 include: "rules/14.genomic_signatures.smk"
+include: "rules/15.esm_rdrp.smk"
 
 
 # Stage targets. The shared phylogeny first, because the codon alignments and
@@ -173,3 +174,4 @@ rule novel_all:
         rules.demarcation_all.input,
         rules.codon_all.input,
         rules.signatures_all.input,
+        rules.esm_rdrp_all.input if config.get("esm_rdrp", {}).get("enabled", False) else [],
