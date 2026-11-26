@@ -271,6 +271,7 @@ include: "rules/13.codon_alignments.smk"
 include: "rules/14.genomic_signatures.smk"
 include: "rules/15.figures.smk"
 include: "rules/15.esm_rdrp.smk"
+include: "rules/16.manuscript_figures.smk"
 
 
 # Stage targets. The shared phylogeny first, because the codon alignments and

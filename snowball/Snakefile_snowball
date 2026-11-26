@@ -145,3 +145,49 @@ rule serratus_snowball_manifest:
             --out-combined "{output.combined}" \
             > "{log}" 2>&1
         """
+
+
+rule snowball_cross_match:
+    """Screen assembled Snowball_RdRp viral contigs against original validated novel RdRps."""
+    input:
+        seed_faa = f"{OUT_DIR}/validated_novel_rdrps.faa",
+    output:
+        hits = f"{OUT_DIR}/snowball_vs_seed_blastx.tsv",
+    params:
+        contigs_glob = "../data/03.rnaviralSPAdes/Snowball_RdRp/*/filtered_contigs.fasta",
+        evalue       = 1e-10,
+        min_pident   = 40.0,
+    threads: 4
+    conda:
+        ENV_SNOWBALL
+    log:
+        "logs/snowball/snowball_cross_match.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "{OUT_DIR}/tmp_cross"
+        TMP_CONTIGS="{OUT_DIR}/tmp_cross/snowball_contigs_prefixed.fasta"
+        : > "${{TMP_CONTIGS}}"
+        for f in {params.contigs_glob}; do
+            [ -s "$f" ] || continue
+            RUN_ID="$(basename "$(dirname "$f")")"
+            awk -v rid="$RUN_ID" '/^>/{print ">" rid "|" substr($0,2); next} {print}' "$f" >> "${{TMP_CONTIGS}}"
+        done
+        if [ ! -s "${{TMP_CONTIGS}}" ] || [ ! -s "{input.seed_faa}" ]; then
+            printf "qseqid\tsseqid\tpident\tlength\tqlen\tslen\tevalue\tbitscore\n" > "{output.hits}"
+            echo "[snowball_cross_match] No contigs or seed FAA found; wrote empty table." > "{log}"
+            exit 0
+        fi
+        diamond makedb --in "{input.seed_faa}" -d "{OUT_DIR}/tmp_cross/seed_rdrps" > "{log}" 2>&1
+        printf "qseqid\tsseqid\tpident\tlength\tqlen\tslen\tevalue\tbitscore\n" > "{output.hits}"
+        diamond blastx \
+            --query "${{TMP_CONTIGS}}" \
+            --db "{OUT_DIR}/tmp_cross/seed_rdrps.dmnd" \
+            --outfmt 6 qseqid sseqid pident length qlen slen evalue bitscore \
+            --evalue {params.evalue} \
+            --id {params.min_pident} \
+            --sensitive \
+            --max-target-seqs 5 \
+            --threads {threads} \
+            >> "{output.hits}" 2>> "{log}"
+        rm -rf "{OUT_DIR}/tmp_cross"
+        """
