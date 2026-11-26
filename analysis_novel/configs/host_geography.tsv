@@ -1,0 +1,9 @@
+host_species	subfamily	continent	region	bioproject	stage	color_hex	map_x	map_y
+Ips confusus	Scolytinae	North America	Western USA	PRJNA647034	seed	#1D4ED8	185	165
+Hylobius abietis	Molytinae	Europe	Northern/Central Europe	PRJNA435680	seed	#0F766E	440	120
+Hylobius abietis	Molytinae	Europe	Northern/Central Europe	PRJNA783427	seed	#0F766E	440	120
+Hylobius abietis	Molytinae	Europe	Northern/Central Europe	PRJNA419715	snowball	#0F766E	440	120
+Ips typographus	Scolytinae	Europe	Central/Northern Europe	PRJNA699282	snowball	#0369A1	480	138
+Ips nitidus	Scolytinae	Asia	Qinghai-Tibet, China	PRJNA722788	snowball	#D97706	675	175
+Ips nitidus	Scolytinae	Asia	Qinghai-Tibet, China	PRJNA780600	snowball	#D97706	675	175
+Ips subelongatus	Scolytinae	Asia	East Asia	PRJNA780169	snowball	#9333EA	725	152
