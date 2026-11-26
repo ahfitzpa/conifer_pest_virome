@@ -81,7 +81,9 @@ snakemake \
     --conda-frontend "${CONDA_FRONTEND:-conda}" \
     --rerun-incomplete \
     --rerun-triggers mtime \
-    --default-resources slurm_partition=shared runtime=240 mem_mb=0 \
+    --keep-going \
+    --default-resources slurm_partition=shared runtime=480 mem_mb=0 \
+    --set-resources filter_contigs:runtime=720 \
     --config "manifest=${MANIFEST_NEW}"
 
 echo "[snowball] Step 3: Launching analysis_novel on combined manifest"
