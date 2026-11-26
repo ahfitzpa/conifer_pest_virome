@@ -170,7 +170,7 @@ rule snowball_cross_match:
         for f in {params.contigs_glob}; do
             [ -s "$f" ] || continue
             RUN_ID="$(basename "$(dirname "$f")")"
-            awk -v rid="$RUN_ID" '/^>/{print ">" rid "|" substr($0,2); next} {print}' "$f" >> "${{TMP_CONTIGS}}"
+            awk -v rid="$RUN_ID" '/^>/{{print ">" rid "|" substr($0,2); next}} {{print}}' "$f" >> "${{TMP_CONTIGS}}"
         done
         if [ ! -s "${{TMP_CONTIGS}}" ] || [ ! -s "{input.seed_faa}" ]; then
             printf "qseqid\tsseqid\tpident\tlength\tqlen\tslen\tevalue\tbitscore\n" > "{output.hits}"
