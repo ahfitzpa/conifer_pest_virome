@@ -139,20 +139,18 @@ rule benchmark_polycipiviridae_evolution:
         summary = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution/polycipiviridae_phylogeography_summary.tsv",
         svg     = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution/polycipiviridae_evolution.svg",
     params:
-        out_dir  = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution",
-        manifest = f"{SNOWBALL_DIR}/manifest_combined.csv",
-        fam_dir  = "results/phylogenetics/Polycipiviridae",
+        out_dir      = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution",
+        manifest     = f"{SNOWBALL_DIR}/manifest_combined.csv",
+        ictv_contigs = f"{ICTV_DIR}/families/Polycipiviridae/contigs.fasta",
     log:
         "logs/benchmarks/05_polycipiviridae_evolution.log",
     shell:
         """
         mkdir -p $(dirname {log}) "{params.out_dir}"
         FA_ARGS=""
-        for f in "{params.fam_dir}"/*novel*.fasta "{params.fam_dir}"/*contigs*.fasta; do
-            [ -s "$f" ] && FA_ARGS="$FA_ARGS --contigs-fasta $f"
-        done
+        [ -s "{params.ictv_contigs}" ] && FA_ARGS="--contigs-fasta {params.ictv_contigs}"
         if [ -z "$FA_ARGS" ]; then
-            echo "[polycipiviridae_evolution] ERROR: No Polycipiviridae contig FASTA found in {params.fam_dir}" > "{log}"
+            echo "[polycipiviridae_evolution] ERROR: Polycipiviridae contigs.fasta not found at {params.ictv_contigs}" > "{log}"
             exit 1
         fi
         MAN_ARG=""
