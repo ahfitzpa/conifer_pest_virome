@@ -65,30 +65,42 @@ def write_tsv_atomic(path: Path, fieldnames: Sequence[str], rows: List[Dict[str,
 
 
 def summarize_divergence_bins(
-    esm_tsv: Path,
+    esm_tsvs: Sequence[Path],
     pebblescout_tsv: Optional[Path],
 ) -> List[Dict[str, object]]:
     counts = {
         b: {"hmm_gated": 0, "validated_rdrp": 0, "viral_ns3": 0, "rt_purged": 0, "host_purged": 0, "uncertain": 0}
         for b in BINS
     }
-    with esm_tsv.open("r", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh, delimiter="\t"):
-            b = assign_divergence_bin(row)
-            counts[b]["hmm_gated"] += 1
-            verdict = (row.get("structural_verdict") or "").strip().lower()
-            target = (row.get("rdrp_target") or "").lower()
-            if verdict in {"validated_rdrp_high", "validated_rdrp_moderate"}:
-                if ("8gzq" in target or "8gzr" in target) and target.endswith("_b"):
-                    counts[b]["viral_ns3"] += 1
-                else:
-                    counts[b]["validated_rdrp"] += 1
-            elif verdict == "rt_or_non_rdrp_flag":
-                counts[b]["rt_purged"] += 1
-            elif verdict in {"low_confidence_fold", "no_structural_hit", "fold_failed"}:
-                counts[b]["uncertain"] += 1
+    merged_rows: Dict[tuple, Dict[str, str]] = {}
+    for esm_tsv in esm_tsvs:
+        if not esm_tsv.is_file():
+            LOG.warning("Skipping missing ESM validation TSV: %s", esm_tsv)
+            continue
+        with esm_tsv.open("r", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh, delimiter="\t"):
+                run_id = (row.get("run_id") or "").strip()
+                contig = (row.get("contig") or "").strip()
+                cid = (row.get("candidate_id") or "").strip()
+                key = (run_id, contig) if (run_id and contig) else (cid, "")
+                merged_rows[key] = row
+
+    for row in merged_rows.values():
+        b = assign_divergence_bin(row)
+        counts[b]["hmm_gated"] += 1
+        verdict = (row.get("structural_verdict") or "").strip().lower()
+        target = (row.get("rdrp_target") or "").lower()
+        if verdict in {"validated_rdrp_high", "validated_rdrp_moderate"}:
+            if ("8gzq" in target or "8gzr" in target) and target.endswith("_b"):
+                counts[b]["viral_ns3"] += 1
             else:
-                counts[b]["host_purged"] += 1
+                counts[b]["validated_rdrp"] += 1
+        elif verdict == "rt_or_non_rdrp_flag":
+            counts[b]["rt_purged"] += 1
+        elif verdict in {"low_confidence_fold", "no_structural_hit", "fold_failed"}:
+            counts[b]["uncertain"] += 1
+        else:
+            counts[b]["host_purged"] += 1
 
     # Optional PebbleScout summary check
     ps_max_cov = "NA"
@@ -167,7 +179,13 @@ def summarize_snakemake_benchmarks(bench_dirs: Sequence[Path]) -> List[Dict[str,
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--esm-validation", required=True, type=Path)
+    ap.add_argument(
+        "--esm-validation",
+        required=True,
+        action="append",
+        type=Path,
+        help="Stage 15 esm_rdrp_validation.tsv (repeatable).",
+    )
     ap.add_argument("--pebblescout-tsv", type=Path, default=None)
     ap.add_argument(
         "--benchmark-dir",

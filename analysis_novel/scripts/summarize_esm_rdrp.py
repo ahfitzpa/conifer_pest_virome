@@ -57,8 +57,13 @@ NON_RDRP_VIRAL_PATTERNS = re.compile(
 
 RDRP_PATTERNS = re.compile(
     r"(rna-dependent\s+rna\s+polymerase|rna-directed\s+rna\s+polymerase|"
-    r"\brdrp\b|replicase|polyprotein|nsp12|ns5\b|ns5b|pb1\b|3dpol|"
-    r"l\s+protein|large\s+structural\s+protein|viral\s+polymerase)",
+    r"\brdrp\b|replicase|polyprotein|\bnsp12\b|\bns5\b|\bns5b\b|\bpb1\b|\b3dpol\b|"
+    r"\bl\s+protein\b|large\s+structural\s+protein|viral\s+polymerase)",
+    re.IGNORECASE,
+)
+
+EXPLICIT_RDRP_PATTERNS = re.compile(
+    r"(rna-dependent\s+rna\s+polymerase|rna-directed\s+rna\s+polymerase|\brdrp\b|\b3dpol\b)",
     re.IGNORECASE,
 )
 
@@ -98,10 +103,10 @@ def classify_target_header(header: str) -> str:
     """Classify a Foldseek target description as 'rt', 'rdrp', or 'other'."""
     if RT_PATTERNS.search(header):
         return "rt"
+    if NON_RDRP_VIRAL_PATTERNS.search(header) and not EXPLICIT_RDRP_PATTERNS.search(header):
+        return "other"
     if RDRP_PATTERNS.search(header):
         return "rdrp"
-    if NON_RDRP_VIRAL_PATTERNS.search(header):
-        return "other"
     return "other"
 
 

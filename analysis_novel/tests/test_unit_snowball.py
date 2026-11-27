@@ -6,6 +6,7 @@ Run with:
 
 from __future__ import annotations
 
+import csv
 import sys
 import tempfile
 import unittest
@@ -76,6 +77,72 @@ class TestSnowballWorkflow(unittest.TestCase):
         self.assertEqual(list(manifest_rows[0].keys()), serratus_snowball.MANIFEST_COLS)
         self.assertEqual(manifest_rows[0]["source"], "sra")
         self.assertEqual(manifest_rows[0]["run_id"], "SRR_A1")
+
+
+    def test_open_host_specificity_and_spotcheck_selection(self) -> None:
+        import open_host_specificity
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            inp = tdir / "open_host.tsv"
+            inp.write_text(
+                "run_id\tbioproject\tscientific_name\tmatched_sotus\tmax_coverage\tsize_mb\n"
+                "SRR1\tPRJNA1\tIps nitidus\tu993423\t80\t900\n"
+                "SRR2\tPRJNA2\tIps typographus\tu993423\t60\t800\n"
+                "SRR3\tPRJNA3\tIps duplicatus\tu1029776\t55\t700\n"
+                "SRR4\tPRJNA4\tVespula vulgaris\tu653762\t120\t600\n"
+                "SRR5\tPRJNA5\tGraminella nigrifrons\tu653762\t90\t1200\n"
+                "SRR6\tPRJNA6\tMus musculus\tu761589\t30\t500\n"
+                "SRR7\tPRJNA7\tHomo sapiens\tu761589\t25\t450\n",
+                encoding="utf-8",
+            )
+            spec = tdir / "spec.tsv"
+            man = tdir / "spotcheck.csv"
+            rc = open_host_specificity.main([
+                "--open-host-tsv", str(inp),
+                "--out-specificity-tsv", str(spec),
+                "--out-spotcheck-manifest", str(man),
+            ])
+            self.assertEqual(rc, 0)
+            spec_txt = spec.read_text(encoding="utf-8")
+            self.assertIn("strict_beetle_specialist", spec_txt)
+            self.assertIn("pan_arthropod_generalist", spec_txt)
+            self.assertIn("broad_low_specificity", spec_txt)
+            man_txt = man.read_text(encoding="utf-8")
+            self.assertIn("SRR4", man_txt)  # Vespula vulgaris generalist
+            self.assertIn("SRR3", man_txt)  # Ips duplicatus sister specialist
+            self.assertIn("OpenHost_SpotCheck", man_txt)
+            with man.open("r", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                self.assertEqual(reader.fieldnames, serratus_snowball.MANIFEST_COLS)
+                rows = list(reader)
+            self.assertGreaterEqual(len(rows), 2)
+            self.assertEqual(rows[0]["source"], "sra")
+            self.assertEqual(rows[0]["sample_id"], rows[0]["run_id"])
+
+    def test_open_host_enrichment_fisher_and_cli(self) -> None:
+        import open_host_enrichment
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            inp = tdir / "open_host.tsv"
+            rows_txt = ["run_id\tscientific_name\tlibrary_source\tmatched_sotus"]
+            for i in range(15):
+                rows_txt.append(f"SRR_IPS_{i}\tIps confusus\tTRANSCRIPTOMIC\tu993423")
+            for i in range(10):
+                rows_txt.append(f"SRR_GEN_{i}\tVespula vulgaris\tTRANSCRIPTOMIC\tu653762")
+            inp.write_text("\n".join(rows_txt) + "\n", encoding="utf-8")
+            out_enr = tdir / "enrichment.tsv"
+            rc = open_host_enrichment.main([
+                "--open-host-tsv", str(inp),
+                "--out-enrichment-tsv", str(out_enr),
+            ])
+            self.assertEqual(rc, 0)
+            with out_enr.open("r", encoding="utf-8") as fh:
+                by_sotu = {r["sotu"]: r for r in csv.DictReader(fh, delimiter="\t")}
+            self.assertEqual(by_sotu["u993423"]["host_association_tier"], "beetle_restricted_in_archives")
+            self.assertLess(float(by_sotu["u993423"]["fisher_exact_p"]), 1e-10)
+            self.assertGreater(float(by_sotu["u993423"]["beetle_odds_ratio"]), 100.0)
 
 
 if __name__ == "__main__":

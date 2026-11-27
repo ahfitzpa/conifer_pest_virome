@@ -34,7 +34,7 @@ snakemake -s "${SNOWBALL_DIR}/Snakefile_snowball" \
     --conda-frontend conda \
     --conda-prefix "${SNOWBALL_DIR}/.snakemake/conda" \
     --rerun-triggers mtime \
-    -- open_host_specificity
+    open_host_specificity
 
 SPOTCHECK_MANIFEST="${SNOWBALL_DIR}/results/open_host/manifest_spotcheck.csv"
 if [ ! -s "${SPOTCHECK_MANIFEST}" ] || [ "$(wc -l < "${SPOTCHECK_MANIFEST}")" -le 1 ]; then
@@ -66,6 +66,6 @@ snakemake -s "${SNOWBALL_DIR}/Snakefile_snowball" \
     --conda-frontend conda \
     --conda-prefix "${SNOWBALL_DIR}/.snakemake/conda" \
     --rerun-triggers mtime \
-    -- spotcheck_cross_match
+    spotcheck_cross_match
 
 echo "[$(date -Is)] Done! Results in ${SNOWBALL_DIR}/results/open_host/"

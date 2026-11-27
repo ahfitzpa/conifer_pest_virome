@@ -162,19 +162,41 @@ def select_spotcheck_runs(
                 or "Unknown"
             ).strip()
             bp = (picked.get("bioproject") or picked.get("bio_project") or "").strip()
-            chosen.append(
+            layout = (picked.get("library_layout") or "paired").strip().lower()
+            platform = (picked.get("platform") or "illumina").strip().lower()
+            notes = (
+                f"spotcheck_sotu={sotu};"
+                f"max_cov={picked.get('max_coverage', '')};"
+                f"size_mb={picked.get('size_mb', '')}"
+            )
+            rec: Dict[str, object] = {col: "" for col in PHASE2_MANIFEST_COLS}
+            rec.update(
                 {
-                    "run": rid,
-                    "bioproject": bp,
-                    "host_organism": host,
+                    "sample_id": rid,
                     "family": "OpenHost_SpotCheck",
+                    "source": "sra",
+                    "run_id": rid,
+                    "platform": platform,
+                    "layout": layout,
+                    "host_species": host,
+                    "notes": notes,
+                    "bioproject": bp,
+                    "scientificname": host,
                     "scenario": f"spotcheck_{cls}",
-                    "target_sotu": sotu,
-                    "max_coverage": picked.get("max_coverage", ""),
-                    "size_mb": picked.get("size_mb", ""),
+                    "host_status": "open_host_spotcheck",
                 }
             )
+            chosen.append(rec)
     return chosen
+
+
+PHASE2_MANIFEST_COLS = [
+    "sample_id", "family", "source", "run_id", "fq1", "fq2", "platform", "layout",
+    "barcode", "library_id", "batch", "condition", "replicate", "host_species",
+    "collection_date", "notes", "md5_fq1", "md5_fq2", "adapter", "genome_size",
+    "expected_coverage", "bioproject", "scientificname", "ref_genome_path",
+    "scenario", "host_status",
+]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -246,10 +268,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     write_csv_atomic(
         args.out_spotcheck_manifest,
-        [
-            "run", "bioproject", "host_organism", "family",
-            "scenario", "target_sotu", "max_coverage", "size_mb",
-        ],
+        PHASE2_MANIFEST_COLS,
         spotchecks,
     )
     LOG.info(
