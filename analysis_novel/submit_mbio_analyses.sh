@@ -2,7 +2,6 @@
 #SBATCH --job-name=mbio_analyses
 #SBATCH --partition=shared
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=8G
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/mbio_analyses_%j.out
 #SBATCH --error=logs/mbio_analyses_%j.err
