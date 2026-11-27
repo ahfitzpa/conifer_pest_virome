@@ -34,9 +34,17 @@ class TestStage17Benchmarks(unittest.TestCase):
                 "c4\tSRR9990001|N4\tSRR9990001\tmedium\tUnresolved\t\tunresolved\t80.0\t\t6id1_A\t0.90\t1.0\t1e-22\tDEAH-box helicase DHX15\t0.0\thost_non_rdrp\n",
                 encoding="utf-8",
             )
+            val2 = tdir / "esm_rdrp_validation_round2.tsv"
+            val2.write_text(
+                "candidate_id\tcontig\trun_id\tconfidence\tconsensus_family\tnearest_identity_pct\tselection_reason\tmean_plddt\tmotif_c\trdrp_target\trdrp_tmscore\trdrp_prob\trdrp_evalue\trdrp_theader\trt_tmscore\tstructural_verdict\n"
+                "c1_dup\tSRR12261680|N1\tSRR12261680\thigh\tPolycipiviridae\t24.9\tdivergent_aa_id<40pct\t84.5\tGDD\t3nky_A\t0.88\t1.0\t1e-20\tFMDV 3Dpol RdRp\t0.62\tvalidated_rdrp_high\n"
+                "c5\tSRR13742307|N5\tSRR13742307\tmedium\tUnresolved\t\tunresolved\t81.0\t\t6id1_A\t0.89\t1.0\t1e-21\tDEAH-box helicase Prp2\t0.0\thost_non_rdrp\n",
+                encoding="utf-8",
+            )
             out_dir = tdir / "02_structural_triage"
             rc = benchmark_structural_triage.main([
                 "--validation-tsv", str(val),
+                "--validation-tsv", str(val2),
                 "--out-dir", str(out_dir),
             ])
             self.assertEqual(rc, 0)
@@ -48,6 +56,7 @@ class TestStage17Benchmarks(unittest.TestCase):
 
             with (out_dir / "out_of_order_validation.tsv").open("r", encoding="utf-8") as fh:
                 rows = {r["cohort"]: r for r in csv.DictReader(fh, delimiter="\t")}
+            self.assertEqual(int(rows["coleoptera"]["n_total_domains"]), 4)
             self.assertEqual(int(rows["coleoptera"]["n_viral_rdrp"]), 1)
             self.assertEqual(int(rows["out_of_order_locusta"]["n_total_domains"]), 1)
             self.assertEqual(int(rows["out_of_order_locusta"]["n_viral_rdrp"]), 0)

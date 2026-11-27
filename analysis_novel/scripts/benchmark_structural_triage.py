@@ -436,7 +436,13 @@ def render_benchmark_svg(
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--validation-tsv", required=True, type=Path)
+    ap.add_argument(
+        "--validation-tsv",
+        required=True,
+        action="append",
+        type=Path,
+        help="Stage 15 esm_rdrp_validation.tsv (repeatable; later files override duplicate (run_id, contig) rows).",
+    )
     ap.add_argument("--manifest", type=Path, default=None)
     ap.add_argument("--ground-truth-tsv", type=Path, default=None)
     ap.add_argument("--out-dir", required=True, type=Path)
@@ -445,16 +451,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     manifest_hosts = load_manifest_hosts(args.manifest)
     ext_gt = load_ground_truth(args.ground_truth_tsv)
 
+    merged_rows: Dict[Tuple[str, str], Dict[str, str]] = {}
+    for val_path in args.validation_tsv:
+        if not val_path.is_file():
+            LOG.warning("Skipping missing validation TSV: %s", val_path)
+            continue
+        with val_path.open("r", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh, delimiter="\t"):
+                run_id = (row.get("run_id") or "").strip()
+                contig = (row.get("contig") or "").strip()
+                cid = (row.get("candidate_id") or "").strip()
+                key = (run_id, contig) if (run_id and contig) else (cid, "")
+                merged_rows[key] = row
+
     cohorts: Dict[str, List[Tuple[Dict[str, str], str, str]]] = {
         "coleoptera": [],
         "out_of_order_locusta": [],
     }
-    with args.validation_tsv.open("r", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh, delimiter="\t"):
-            run_id = (row.get("run_id") or "").strip()
-            cohort = infer_cohort(run_id, manifest_hosts)
-            ref_cls, src = derive_reference_class(row, ext_gt)
-            cohorts[cohort].append((row, ref_cls, src))
+    for row in merged_rows.values():
+        run_id = (row.get("run_id") or "").strip()
+        cohort = infer_cohort(run_id, manifest_hosts)
+        ref_cls, src = derive_reference_class(row, ext_gt)
+        cohorts[cohort].append((row, ref_cls, src))
 
     out_dir = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
