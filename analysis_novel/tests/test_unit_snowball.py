@@ -6,6 +6,7 @@ Run with:
 
 from __future__ import annotations
 
+import csv
 import sys
 import tempfile
 import unittest
@@ -111,6 +112,13 @@ class TestSnowballWorkflow(unittest.TestCase):
             self.assertIn("SRR4", man_txt)  # Vespula vulgaris generalist
             self.assertIn("SRR3", man_txt)  # Ips duplicatus sister specialist
             self.assertIn("OpenHost_SpotCheck", man_txt)
+            with man.open("r", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                self.assertEqual(reader.fieldnames, serratus_snowball.MANIFEST_COLS)
+                rows = list(reader)
+            self.assertGreaterEqual(len(rows), 2)
+            self.assertEqual(rows[0]["source"], "sra")
+            self.assertEqual(rows[0]["sample_id"], rows[0]["run_id"])
 
 
 if __name__ == "__main__":
