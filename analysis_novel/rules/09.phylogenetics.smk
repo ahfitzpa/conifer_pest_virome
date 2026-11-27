@@ -229,7 +229,7 @@ with open(sys.argv[1]) as fh, open(sys.argv[2], "w") as out:
             else:
                 seen.add(hdr)
                 keep = True
-                out.write(f">{hdr}\\n")
+                out.write(">" + hdr + "\\n")
         elif keep:
             out.write(line.replace("J", "X").replace("j", "X"))
 ' {input.aln} "$CLEAN_ALN"
@@ -350,7 +350,7 @@ with open(sys.argv[1]) as fh, open(sys.argv[2], "w") as out:
             else:
                 seen.add(hdr)
                 keep = True
-                out.write(f">{hdr}\\n")
+                out.write(">" + hdr + "\\n")
         elif keep:
             out.write(line.replace("J", "X").replace("j", "X"))
 ' {input.aln} "$CLEAN_ALN"
