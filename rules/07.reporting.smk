@@ -36,7 +36,10 @@ rule rdrp_domains:
     shell:
         """
         SCAN_DIR="data/04.taxonomy/{wildcards.family}/{wildcards.sample}/rdrpcatch/scan"
-        TRANS=$(find "$SCAN_DIR" -path "*seqkit_translate_output*" -name "*.fasta" 2>/dev/null | head -1)
+        TRANS=""
+        if [ -d "$SCAN_DIR" ]; then
+            TRANS=$(find "$SCAN_DIR" -path "*seqkit_translate_output*" -name "*.fasta" 2>/dev/null | head -1 || true)
+        fi
         if [ -z "$TRANS" ]; then
             echo "WARNING: no seqkit_translate_output FASTA under $SCAN_DIR -- writing empty domain set" >&2
             TRANS=/dev/null

@@ -192,14 +192,53 @@ rule phylo_align:
         """
 
 
-# Task 1 ends at the alignment. The ML tree that used to be built here
-# (rule phylo_tree -> tree.newick, and phylo_summary over it) was consumed by
-# nothing but its own summary table: the tree every downstream step actually
-# reads is the scenario phylogeny's nucleotide tree in SCENARIO_PHYLO_DIR,
-# which rules 11, 13 and 14 and the figure scripts all use. Two ML trees per
-# family were being built for one consumer; aln.trimmed.faa is what rule 12
-# (demarcation) needs from this task, so the alignment stays and the second
-# IQ-TREE run is gone.
+# Task 1 ML tree (restored for manuscript Figs 4-6 in rules/16.manuscript_figures.smk).
+# Not added to phylo_all so routine Phase 3 runs don't pay for redundant trees,
+# but available whenever fig4/fig5/fig6 or phylo_tree is requested.
+rule phylo_tree:
+    input:
+        aln = PHYLO_DIR + "/families/{fam}/aln.trimmed.faa"
+    output:
+        tree = PHYLO_DIR + "/families/{fam}/tree.newick",
+        iqtree = PHYLO_DIR + "/families/{fam}/iqtree.txt",
+        log = PHYLO_DIR + "/families/{fam}/iqtree.log"
+    params:
+        prefix = PHYLO_DIR + "/families/{fam}/iqtree",
+        model = PCFG.get("iqtree_model", "MFP"),
+        ufb = PCFG.get("ufb_replicates", 1000),
+        alrt = PCFG.get("alrt_replicates", 1000)
+    benchmark:
+        "benchmarks/phylo_tree/{fam}.tsv"
+    threads: 8
+    resources: mem_gb=16, runtime=360
+    conda: get_env("PHYLO_ENV")
+    shell:
+        """
+        mkdir -p $(dirname {params.prefix})
+        CLEAN_ALN="{params.prefix}.dedup.faa"
+        python3 -c '
+import sys
+seen = set()
+keep = False
+with open(sys.argv[1]) as fh, open(sys.argv[2], "w") as out:
+    for line in fh:
+        if line.startswith(">"):
+            hdr = line[1:].strip().split()[0]
+            if hdr in seen:
+                keep = False
+            else:
+                seen.add(hdr)
+                keep = True
+                out.write(f">{hdr}\\n")
+        elif keep:
+            out.write(line.replace("J", "X").replace("j", "X"))
+' {input.aln} "$CLEAN_ALN"
+        iqtree2 -s "$CLEAN_ALN" -m {params.model} \
+            -B {params.ufb} -alrt {params.alrt} -T {threads} -redo \
+            --prefix {params.prefix} > {output.log} 2>&1
+        cp {params.prefix}.treefile {output.tree}
+        cp {params.prefix}.iqtree {output.iqtree}
+        """
 
 
 # ---------------------------------------------------------------------------
@@ -297,8 +336,26 @@ rule concat_tree:
     shell:
         """
         mkdir -p $(dirname {params.prefix})
-        iqtree2 -s {input.aln} -m {params.model} \
-            -B {params.ufb} -alrt {params.alrt} -T {threads} \
+        CLEAN_ALN="{params.prefix}.dedup.faa"
+        python3 -c '
+import sys
+seen = set()
+keep = False
+with open(sys.argv[1]) as fh, open(sys.argv[2], "w") as out:
+    for line in fh:
+        if line.startswith(">"):
+            hdr = line[1:].strip().split()[0]
+            if hdr in seen:
+                keep = False
+            else:
+                seen.add(hdr)
+                keep = True
+                out.write(f">{hdr}\\n")
+        elif keep:
+            out.write(line.replace("J", "X").replace("j", "X"))
+' {input.aln} "$CLEAN_ALN"
+        iqtree2 -s "$CLEAN_ALN" -m {params.model} \
+            -B {params.ufb} -alrt {params.alrt} -T {threads} -redo \
             --prefix {params.prefix} > {output.log} 2>&1
         cp {params.prefix}.treefile {output.tree}
         cp {params.prefix}.iqtree {output.iqtree}

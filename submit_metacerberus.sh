@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=1-12:00:00
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #
 # 1. Rerun MetaCerberus alone. Job 1180648 died at STEP 8 of 10 on 2026-11-23
 #    because its parent driver (1180411) was cancelled at 11:43:33, not because
@@ -22,8 +21,8 @@ mkdir -p logs tmp
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 
 # 3. STEP 10 renders figures through kaleido, which needs this Chrome.

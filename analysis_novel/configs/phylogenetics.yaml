@@ -83,6 +83,9 @@ phylogenetics:
     # Minimum ICTV references per family before screening is attempted;
     # below this, recombination cannot be assessed meaningfully.
     min_references: 8
+    # Cap ICTV references to the top N closest to the candidates so OpenRDP's
+    # O(N^3) scanners do not time out at 36h on large families.
+    max_references: 25
     # Columns of the trimmed NUCLEOTIDE alignment. Until 2026-11-23 this was
     # compared against an amino-acid length, making the gate ~3x stricter than
     # written: Polycipiviridae (495), Phycodnaviridae (496) and Demerecviridae
@@ -96,7 +99,8 @@ phylogenetics:
     # RDP5 binary: that is not on bioconda, rdp5_binary was never supplied, and
     # its rule therefore never ran. OpenRDP's RDP scanner replaces it.
     methods: ["openrdp", "hyphy_gard"]
-    openrdp_scanners: ["RDP", "GENECONV", "BootScan", "MaxChi", "Chimaera", "SiScan", "3Seq"]
+    # Dropped BootScan and SiScan (cubic window scans that timed out at 36h on 8 families).
+    openrdp_scanners: ["RDP", "GENECONV", "MaxChi", "Chimaera", "3Seq"]
     openrdp_min_methods: 2       # events called by >= N scanners are reported
     hyphy_method: "gard"         # gard | walrus (if available in the env)
     hyphy_mode: "Faster"

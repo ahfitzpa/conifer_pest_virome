@@ -11,7 +11,7 @@ set -uo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
 module purge
 module load snakemake/8.30.0
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
 export OPENBLAS_NUM_THREADS=1
 for t in phylo_all recomb_all demarcation_all signatures_all codon_all genome_map_all figures_all; do
     echo "### $t"

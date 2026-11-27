@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=08:00:00
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #
 # 1. Scheduler only: figures_all (rules/15.figures.smk), each figure its own job.
 # 2. Run after demarcation and signatures: the overview figures read those
@@ -20,8 +19,8 @@ mkdir -p logs tmp
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \

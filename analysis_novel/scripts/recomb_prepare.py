@@ -90,6 +90,8 @@ def main() -> int:
     ap.add_argument("--selected", required=True,
                     help="selected.tsv, carrying label and origin columns")
     ap.add_argument("--min-refs", type=int, required=True)
+    ap.add_argument("--max-refs", type=int, default=0,
+                    help="if > 0, cap ICTV references to top N closest to candidates")
     ap.add_argument("--min-aln", type=int, required=True,
                     help="minimum alignment columns (nucleotides)")
     ap.add_argument("--min-coverage", type=float, default=0.3,
@@ -125,6 +127,37 @@ def main() -> int:
 
     refs = [n for n in kept if is_ref(n)]
     cands = [n for n in kept if not is_ref(n)]
+
+    # 3b. Cap references to top --max-refs closest to any candidate (by shared
+    #     non-gap nucleotide identity, tie-breaking by sequence coverage).
+    capped_note = ""
+    if a.max_refs > 0 and len(refs) > a.max_refs and cands:
+        def best_cand_ident(ref_name):
+            rs = kept[ref_name].upper()
+            best = -1.0
+            for cn in cands:
+                cs = kept[cn].upper()
+                shared = 0
+                matches = 0
+                for a_ch, b_ch in zip(rs, cs):
+                    if a_ch not in MISSING and b_ch not in MISSING:
+                        shared += 1
+                        if a_ch == b_ch:
+                            matches += 1
+                if shared >= 50:
+                    ident = matches / shared
+                    if ident > best:
+                        best = ident
+            return (best, coverage[ref_name])
+
+        refs_sorted = sorted(refs, key=best_cand_ident, reverse=True)
+        keep_refs = set(refs_sorted[: a.max_refs])
+        n_before = len(refs)
+        kept = {n: s for n, s in kept.items() if (n in keep_refs) or (not is_ref(n))}
+        kept, n_cols = drop_empty_columns(kept)
+        refs = [n for n in kept if is_ref(n)]
+        capped_note = f"capped references {n_before}->{len(refs)} closest to candidates"
+
     n_refs, n_cand = len(refs), len(cands)
 
     eligible = int(n_refs >= a.min_refs and n_cand >= 2 and n_cols >= a.min_aln)
@@ -137,6 +170,8 @@ def main() -> int:
         reasons.append(f"alignment {n_cols} nt columns (need {a.min_aln})")
     if dropped:
         reasons.append(f"{len(dropped)} sequence(s) under {a.min_coverage:.0%} coverage removed")
+    if capped_note:
+        reasons.append(capped_note)
     reason = "; ".join(reasons) if reasons else "reference density, taxa and length sufficient"
 
     # 4. The screened alignment keeps its gaps: it IS the matrix the scanners

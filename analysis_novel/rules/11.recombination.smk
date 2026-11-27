@@ -32,6 +32,7 @@ rule recomb_prepare:
         eligible = REC_DIR + "/{fam}/eligible.tsv"
     params:
         min_refs = REC_CFG["min_references"],
+        max_refs = REC_CFG.get("max_references", 25),
         min_aln = REC_CFG["min_alignment_nt"],
         min_cov = REC_CFG.get("min_seq_coverage", 0.3)
     benchmark:
@@ -45,7 +46,8 @@ rule recomb_prepare:
             --family {wildcards.fam} \
             --alignment {input.aln} \
             --selected {input.selected} \
-            --min-refs {params.min_refs} --min-aln {params.min_aln} \
+            --min-refs {params.min_refs} --max-refs {params.max_refs} \
+            --min-aln {params.min_aln} \
             --min-coverage {params.min_cov} \
             --out-fasta {output.aln} --out-candidates {output.candidates} \
             --out-eligible {output.eligible}
@@ -79,6 +81,7 @@ rule recomb_openrdp:
     conda: get_env("OPENRDP_ENV")
     shell:
         """
+        export OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads}
         "${{CONDA_PREFIX:+$CONDA_PREFIX/bin/}}python" scripts/run_openrdp.py \
             --alignment {input.aln} --eligible {input.eligible} \
             --candidates {input.candidates} \

@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=2-00:00:00
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=amy.fitzpatrick@ucd.ie
 #
 # 1. Scheduler only: recomb_all on the NUCLEOTIDE alignment, each rule its own job.
 # 2. Submit with --dependency=afterany:<previous> so it never shares the workdir lock.
@@ -18,8 +17,8 @@ mkdir -p logs tmp
 module purge
 module load snakemake/8.30.0
 export SNAKEMAKE_CONDA_FRONTEND=conda
-export XDG_CACHE_HOME=/scratch/fitzpatria/.cache
-export PIP_CACHE_DIR=/scratch/fitzpatria/.cache/pip
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$PWD/.cache/pip}"
 source "$(dirname "$(which conda)")/../etc/profile.d/conda.sh"
 
 SNAKE_OPTS="--executor slurm --slurm-no-account --jobs 40 --cores 64 \
