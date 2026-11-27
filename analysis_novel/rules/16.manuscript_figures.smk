@@ -115,7 +115,7 @@ rule fig3_snowball_sharing_matrix:
 
 
 rule fig4_polycipiviridae:
-    """Fig. 4: Pan-Holarctic Ips Polycipiviridae AA phylogeny + ORF architecture."""
+    """Fig. 4: Pan-Holarctic Ips Polycipiviridae AA phylogeny + 3D RdRp badges + ORF map."""
     input:
         tree = f"{PHYLO_DIR}/families/Polycipiviridae/tree.newick",
         meta = f"{PHYLO_DIR}/families/Polycipiviridae/taxa_metadata.tsv",
@@ -124,28 +124,29 @@ rule fig4_polycipiviridae:
     params:
         genome_map = f"{GM_DIR}/Polycipiviridae/genome_map_data.tsv",
         manifest   = f"{SNOWBALL_DIR}/manifest_combined.csv",
+        esm_val    = f"{ESM_DIR}/esm_rdrp_validation.tsv",
+        sb_hits    = f"{SNOWBALL_DIR}/snowball_vs_seed_blastx.tsv",
     log:
         "logs/figures/fig4_polycipiviridae.log",
     shell:
         """
         mkdir -p $(dirname {log}) $(dirname {output.svg})
-        MAN_ARG=""
-        [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
-        GM_ARG=""
-        [ -s "{params.genome_map}" ] && GM_ARG="--genome-map {params.genome_map}"
+        MAN_ARG=""; [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
+        GM_ARG="";  [ -s "{params.genome_map}" ] && GM_ARG="--genome-map {params.genome_map}"
+        ESM_ARG=""; [ -s "{params.esm_val}" ] && ESM_ARG="--esm-validation {params.esm_val}"
+        SB_ARG="";  [ -s "{params.sb_hits}" ] && SB_ARG="--snowball-hits {params.sb_hits}"
         python3 scripts/plot_phylo_manuscript.py \
             --mode fig4 \
             --tree "{input.tree}" \
             --meta "{input.meta}" \
-            $GM_ARG \
-            $MAN_ARG \
+            $GM_ARG $MAN_ARG $ESM_ARG $SB_ARG \
             --out-svg "{output.svg}" \
             > "{log}" 2>&1
         """
 
 
 rule fig5_iflaviridae:
-    """Fig. 5: Closed-genome conifer-pest Iflaviridae AA phylogeny."""
+    """Fig. 5: Closed-genome conifer-pest Iflaviridae AA phylogeny + 3D RdRp badges."""
     input:
         tree = f"{PHYLO_DIR}/families/Iflaviridae/tree.newick",
         meta = f"{PHYLO_DIR}/families/Iflaviridae/taxa_metadata.tsv",
@@ -154,28 +155,29 @@ rule fig5_iflaviridae:
     params:
         genome_map = f"{GM_DIR}/Iflaviridae/genome_map_data.tsv",
         manifest   = f"{SNOWBALL_DIR}/manifest_combined.csv",
+        esm_val    = f"{ESM_DIR}/esm_rdrp_validation.tsv",
+        sb_hits    = f"{SNOWBALL_DIR}/snowball_vs_seed_blastx.tsv",
     log:
         "logs/figures/fig5_iflaviridae.log",
     shell:
         """
         mkdir -p $(dirname {log}) $(dirname {output.svg})
-        MAN_ARG=""
-        [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
-        GM_ARG=""
-        [ -s "{params.genome_map}" ] && GM_ARG="--genome-map {params.genome_map}"
+        MAN_ARG=""; [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
+        GM_ARG="";  [ -s "{params.genome_map}" ] && GM_ARG="--genome-map {params.genome_map}"
+        ESM_ARG=""; [ -s "{params.esm_val}" ] && ESM_ARG="--esm-validation {params.esm_val}"
+        SB_ARG="";  [ -s "{params.sb_hits}" ] && SB_ARG="--snowball-hits {params.sb_hits}"
         python3 scripts/plot_phylo_manuscript.py \
             --mode fig5 \
             --tree "{input.tree}" \
             --meta "{input.meta}" \
-            $GM_ARG \
-            $MAN_ARG \
+            $GM_ARG $MAN_ARG $ESM_ARG $SB_ARG \
             --out-svg "{output.svg}" \
             > "{log}" 2>&1
         """
 
 
 rule fig6_amarillo_negssrna:
-    """Fig. 6: Segmented Jingmen-like Amarillovirales & negative-sense RNA viruses."""
+    """Fig. 6: Segmented Jingmen-like Amarillovirales & negative-sense RNA viruses + 3D badges."""
     input:
         amar_tree = f"{PHYLO_DIR}/families/Amarillovirales/tree.newick",
         amar_meta = f"{PHYLO_DIR}/families/Amarillovirales/taxa_metadata.tsv",
@@ -187,19 +189,22 @@ rule fig6_amarillo_negssrna:
         svg = f"{MS_FIG_DIR}/fig6_amarillo_negssrna.svg",
     params:
         manifest = f"{SNOWBALL_DIR}/manifest_combined.csv",
+        esm_val  = f"{ESM_DIR}/esm_rdrp_validation.tsv",
+        sb_hits  = f"{SNOWBALL_DIR}/snowball_vs_seed_blastx.tsv",
     log:
         "logs/figures/fig6_amarillo_negssrna.log",
     shell:
         """
         mkdir -p $(dirname {log}) $(dirname {output.svg})
-        MAN_ARG=""
-        [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
+        MAN_ARG=""; [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
+        ESM_ARG=""; [ -s "{params.esm_val}" ] && ESM_ARG="--esm-validation {params.esm_val}"
+        SB_ARG="";  [ -s "{params.sb_hits}" ] && SB_ARG="--snowball-hits {params.sb_hits}"
         python3 scripts/plot_phylo_manuscript.py \
             --mode fig6 \
             --panel "Amarillovirales (Jingmen-like)|{input.amar_tree}|{input.amar_meta}" \
             --panel "Phenuiviridae (L RdRp)|{input.phen_tree}|{input.phen_meta}" \
             --panel "Aliusviridae (L RdRp)|{input.aliu_tree}|{input.aliu_meta}" \
-            $MAN_ARG \
+            $MAN_ARG $ESM_ARG $SB_ARG \
             --out-svg "{output.svg}" \
             > "{log}" 2>&1
         """

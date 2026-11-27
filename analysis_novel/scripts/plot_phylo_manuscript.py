@@ -354,6 +354,93 @@ def load_genome_map_data(
     return by_contig
 
 
+STRUCT_STATUS_STYLE: Dict[str, Tuple[str, str]] = {
+    "esm_validated": ("#059669", "3D RdRp validated (ESMFold + Foldseek)"),
+    "snowball_homolog": ("#0EA5E9", "Snowball homolog of 3D-validated RdRp"),
+    "seq_only": ("#CBD5E1", "Sequence-validated (not folded / >=40% aa ID)"),
+}
+
+
+def _norm_contig_token(raw: str) -> str:
+    """Extract canonical '<run>|NODE_<id>' token when present for robust matching."""
+    s = (raw or "").strip()
+    m = re.search(r"((?:SRR|ERR|DRR)\d+)[_|](NODE_\d+)", s)
+    if m:
+        return f"{m.group(1)}|{m.group(2)}"
+    return s
+
+
+def load_esm_status(esm_path: Optional[Path]) -> Dict[str, Tuple[str, float]]:
+    """Return normalized contig/run token -> (verdict, rdrp_tmscore) for validated RdRps."""
+    out: Dict[str, Tuple[str, float]] = {}
+    if not esm_path or not esm_path.is_file():
+        return out
+    with esm_path.open("r", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh, delimiter="\t"):
+            verdict = (row.get("structural_verdict") or "").strip().lower()
+            if verdict not in {"validated_rdrp_high", "validated_rdrp_moderate"}:
+                continue
+            try:
+                tm = float(row.get("rdrp_tmscore") or 0.0)
+            except ValueError:
+                tm = 0.0
+            contig = (row.get("contig") or "").strip()
+            if contig:
+                out[contig] = (verdict, tm)
+                out[_norm_contig_token(contig)] = (verdict, tm)
+                if "|" in contig:
+                    out[contig.split("|", 1)[1]] = (verdict, tm)
+    return out
+
+
+def load_snowball_homologs(hits_path: Optional[Path]) -> Dict[str, float]:
+    """Return normalized snowball contig token -> max aa identity to validated seed RdRp."""
+    out: Dict[str, float] = {}
+    if not hits_path or not hits_path.is_file():
+        return out
+    with hits_path.open("r", encoding="utf-8") as fh:
+        first = fh.readline()
+        if not first:
+            return out
+        has_hdr = first.split("\t")[0].lower() in {"qseqid", "query"}
+        fh.seek(0)
+        rows = csv.DictReader(fh, delimiter="\t") if has_hdr else None
+        if rows is not None:
+            for r in rows:
+                q = (r.get("qseqid") or "").strip()
+                try:
+                    pid = float(r.get("pident") or 0.0)
+                except ValueError:
+                    pid = 0.0
+                if q and pid >= 50.0:
+                    for key in (q, _norm_contig_token(q), q.split("|", 1)[-1]):
+                        out[key] = max(out.get(key, 0.0), pid)
+    return out
+
+
+def resolve_struct_status(
+    tip_name: str,
+    contig_key: str,
+    esm_status: Dict[str, Tuple[str, float]],
+    snowball_homologs: Dict[str, float],
+) -> Tuple[str, str]:
+    """Return (status_key, short_badge_text) for a candidate tree tip."""
+    candidates = [
+        tip_name,
+        contig_key,
+        _norm_contig_token(tip_name),
+        _norm_contig_token(contig_key),
+    ]
+    for k in candidates:
+        if k and k in esm_status:
+            _v, tm = esm_status[k]
+            return "esm_validated", f"3D {tm:.2f}" if tm > 0 else "3D"
+    for k in candidates:
+        if k and k in snowball_homologs:
+            return "snowball_homolog", f"{snowball_homologs[k]:.0f}%"
+    return "seq_only", ""
+
+
 def normalise_host(raw: str) -> str:
     low = (raw or "").strip().lower()
     for sp in HOST_STYLE:
@@ -442,6 +529,8 @@ def render_tree_panel(
     orf_x0: float = 0.0,
     orf_w: float = 0.0,
     max_genome_bp: int = 13000,
+    esm_status: Optional[Dict[str, Tuple[str, float]]] = None,
+    snowball_homologs: Optional[Dict[str, float]] = None,
 ) -> Tuple[List[str], float, List[str]]:
     """Render one phylogenetic tree panel and return (svg_lines, bottom_y, hosts_seen)."""
     leaves = _all_leaves(tree)
@@ -560,8 +649,17 @@ def render_tree_panel(
 
     draw_branches(tree)
 
-    # Draw tip dots, labels, and optional aligned ORF tracks
-    tip_align_x = x0 + tree_w + 4.0
+    # Draw tip dots, 3D structural confirmation strip, labels, and optional aligned ORF tracks
+    show_struct_strip = bool(esm_status or snowball_homologs)
+    badge_w = 34.0 if show_struct_strip else 0.0
+    badge_x = x0 + tree_w + 4.0
+    tip_align_x = badge_x + (badge_w + 6.0 if show_struct_strip else 0.0)
+    if show_struct_strip:
+        svg.append(
+            f'<text x="{badge_x + badge_w / 2:.1f}" y="{top_y - 10:.1f}" text-anchor="middle" '
+            f'font-size="8.5" font-weight="700" fill="#334155">RdRp 3D</text>'
+        )
+
     for lf in leaves:
         lx = sx(node_x_raw[id(lf)])
         ly = node_y[id(lf)]
@@ -569,10 +667,11 @@ def render_tree_panel(
         if is_cand and host and host not in hosts_seen:
             hosts_seen.append(host)
 
-        # Dotted guide from tip to aligned label column
-        if tip_align_x - lx > 4.0:
+        # Dotted guide from tip to aligned badge/label column
+        guide_end = badge_x - 3.0 if show_struct_strip else tip_align_x - 3.0
+        if guide_end - lx > 4.0:
             svg.append(
-                f'<line x1="{lx + 3:.2f}" y1="{ly:.2f}" x2="{tip_align_x - 3:.2f}" y2="{ly:.2f}" '
+                f'<line x1="{lx + 3:.2f}" y1="{ly:.2f}" x2="{guide_end:.2f}" y2="{ly:.2f}" '
                 f'stroke="#CBD5E1" stroke-width="0.7" stroke-dasharray="2,2"/>'
             )
 
@@ -581,6 +680,21 @@ def render_tree_panel(
                 f'<circle cx="{lx:.2f}" cy="{ly:.2f}" r="3.8" fill="{color}" '
                 f'stroke="#FFFFFF" stroke-width="1.0"/>'
             )
+            if show_struct_strip:
+                s_key, s_txt = resolve_struct_status(
+                    lf.name, contig_key, esm_status or {}, snowball_homologs or {}
+                )
+                s_col = STRUCT_STATUS_STYLE[s_key][0]
+                txt_col = "#FFFFFF" if s_key in {"esm_validated", "snowball_homolog"} else "#475569"
+                svg.append(
+                    f'<rect x="{badge_x:.1f}" y="{ly - 5.5:.1f}" width="{badge_w:.1f}" height="11.0" '
+                    f'rx="2.5" fill="{s_col}"/>'
+                )
+                if s_txt:
+                    svg.append(
+                        f'<text x="{badge_x + badge_w / 2:.1f}" y="{ly + 2.8:.1f}" text-anchor="middle" '
+                        f'font-size="7.2" font-weight="700" fill="{txt_col}">{escape(s_txt)}</text>'
+                    )
             svg.append(
                 f'<text x="{tip_align_x:.1f}" y="{ly + 3.5:.1f}" font-size="10" '
                 f'font-weight="700" fill="{color}">{escape(label)}</text>'
@@ -652,7 +766,12 @@ def render_tree_panel(
     return svg, scale_y + 24.0, hosts_seen
 
 
-def build_legend(x0: float, y0: float, include_orfs: bool) -> Tuple[List[str], float]:
+def build_legend(
+    x0: float,
+    y0: float,
+    include_orfs: bool,
+    include_struct: bool = False,
+) -> Tuple[List[str], float]:
     svg: List[str] = []
     cx = x0
     svg.append(
@@ -672,6 +791,22 @@ def build_legend(x0: float, y0: float, include_orfs: bool) -> Tuple[List[str], f
         f'fill="#475569">ICTV reference</text>'
     )
     y_next = y0 + 22.0
+    if include_struct:
+        sx = x0
+        svg.append(
+            f'<text x="{sx:.1f}" y="{y_next + 11:.1f}" font-size="9.5" font-weight="700" '
+            f'fill="#334155">RdRp 3D Status:</text>'
+        )
+        sx += 96.0
+        for _k, (col, lbl) in STRUCT_STATUS_STYLE.items():
+            svg.append(
+                f'<rect x="{sx:.1f}" y="{y_next + 3:.1f}" width="12" height="9" rx="2" fill="{col}"/>'
+            )
+            svg.append(
+                f'<text x="{sx + 16:.1f}" y="{y_next + 11:.1f}" font-size="9.5" fill="#1E293B">{escape(lbl)}</text>'
+            )
+            sx += 235.0
+        y_next += 22.0
     if include_orfs:
         ox = x0
         svg.append(
@@ -737,6 +872,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--tree", type=Path, help="Primary Newick treefile (fig4 / fig5).")
     ap.add_argument("--meta", type=Path, help="Primary taxa_metadata.tsv (fig4 / fig5).")
     ap.add_argument("--genome-map", type=Path, help="Optional genome_map_data.tsv (fig4 / fig5).")
+    ap.add_argument("--esm-validation", type=Path, help="Stage 15 esm_rdrp_validation.tsv for 3D status badges.")
+    ap.add_argument("--snowball-hits", type=Path, help="snowball_vs_seed_blastx.tsv for snowball homolog badges.")
     ap.add_argument(
         "--panel",
         action="append",
@@ -753,6 +890,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = ap.parse_args(argv)
 
     manifest_hosts = load_manifest_hosts(args.manifest)
+    esm_status = load_esm_status(args.esm_validation)
+    snowball_homologs = load_snowball_homologs(args.snowball_hits)
+    has_struct = bool(esm_status or snowball_homologs)
     exclude_hosts = [h.strip() for h in args.exclude_hosts.split(",") if h.strip()]
 
     body: List[str] = []
@@ -767,26 +907,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         max_bp = max(13000, int(math.ceil(max_bp / 1000.0) * 1000))
 
         row_h = 18.0
-        width = 1180.0
+        width = 1220.0
         panel_svg, bottom_y, _ = render_tree_panel(
             tree,
             meta,
             manifest_hosts,
             x0=24.0,
             y0=18.0,
-            tree_w=380.0,
+            tree_w=360.0,
             label_w=270.0,
             row_h=row_h,
             panel_letter="A",
             panel_title="Pan-Holarctic Ips Polycipiviridae — RdRp Amino-Acid Phylogeny",
             panel_subtitle="Midpoint-rooted IQ-TREE2 ML tree (SH-aLRT / UFB ≥ 90% shown; dark dots UFB ≥ 95%)",
             orf_map=orf_map,
-            orf_x0=700.0,
+            orf_x0=740.0,
             orf_w=430.0,
             max_genome_bp=max_bp,
+            esm_status=esm_status,
+            snowball_homologs=snowball_homologs,
         )
         body.extend(panel_svg)
-        leg_svg, final_y = build_legend(24.0, bottom_y + 6.0, include_orfs=True)
+        leg_svg, final_y = build_legend(24.0, bottom_y + 6.0, include_orfs=True, include_struct=has_struct)
         body.extend(leg_svg)
         write_svg_atomic(args.out_svg, width, final_y + 18.0, body)
         LOG.info("Wrote Fig. 4 Polycipiviridae SVG (%d leaves) -> %s", len(_all_leaves(tree)), args.out_svg)
@@ -799,26 +941,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         tree = _prepare_tree(args.tree, meta, manifest_hosts, exclude_hosts)
         orf_map = load_genome_map_data(args.genome_map) if args.genome_map else None
         has_orfs = bool(orf_map)
-        width = 1140.0 if has_orfs else 860.0
+        width = 1180.0 if has_orfs else 900.0
         panel_svg, bottom_y, _ = render_tree_panel(
             tree,
             meta,
             manifest_hosts,
             x0=24.0,
             y0=18.0,
-            tree_w=460.0 if not has_orfs else 380.0,
+            tree_w=440.0 if not has_orfs else 360.0,
             label_w=310.0,
             row_h=17.5,
             panel_letter="A",
             panel_title="Closed-Genome Conifer-Pest Iflaviridae — RdRp Amino-Acid Phylogeny",
             panel_subtitle="Midpoint-rooted IQ-TREE2 ML tree across North American, European, and East Asian hosts",
             orf_map=orf_map if has_orfs else None,
-            orf_x0=710.0,
+            orf_x0=750.0,
             orf_w=380.0,
             max_genome_bp=11000,
+            esm_status=esm_status,
+            snowball_homologs=snowball_homologs,
         )
         body.extend(panel_svg)
-        leg_svg, final_y = build_legend(24.0, bottom_y + 6.0, include_orfs=has_orfs)
+        leg_svg, final_y = build_legend(24.0, bottom_y + 6.0, include_orfs=has_orfs, include_struct=has_struct)
         body.extend(leg_svg)
         write_svg_atomic(args.out_svg, width, final_y + 18.0, body)
         LOG.info("Wrote Fig. 5 Iflaviridae SVG (%d leaves) -> %s", len(_all_leaves(tree)), args.out_svg)
@@ -827,7 +971,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # fig6: multi-panel composite (Amarillovirales, Phenuiviridae, Aliusviridae)
     if not args.panel:
         raise SystemExit("fig6 requires at least one --panel 'Title|tree.newick|taxa_metadata.tsv'")
-    width = 920.0
+    width = 960.0
     cur_y = 18.0
     letters = ["A", "B", "C", "D", "E"]
     for idx, spec in enumerate(args.panel):
@@ -846,17 +990,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             manifest_hosts,
             x0=24.0,
             y0=cur_y,
-            tree_w=490.0,
+            tree_w=470.0,
             label_w=340.0,
             row_h=17.0,
             panel_letter=letters[idx % len(letters)],
             panel_title=f"{fam_title} — RdRp Amino-Acid Phylogeny",
             panel_subtitle="Midpoint-rooted IQ-TREE2 ML tree (SH-aLRT / UFB ≥ 90% shown)",
+            esm_status=esm_status,
+            snowball_homologs=snowball_homologs,
         )
         body.extend(p_svg)
         cur_y += 14.0
 
-    leg_svg, final_y = build_legend(24.0, cur_y + 4.0, include_orfs=False)
+    leg_svg, final_y = build_legend(24.0, cur_y + 4.0, include_orfs=False, include_struct=has_struct)
     body.extend(leg_svg)
     write_svg_atomic(args.out_svg, width, final_y + 18.0, body)
     LOG.info("Wrote Fig. 6 multi-panel SVG (%d panels) -> %s", len(args.panel), args.out_svg)

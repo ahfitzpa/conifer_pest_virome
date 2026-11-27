@@ -116,12 +116,26 @@ class TestManuscriptFigureGenerators(unittest.TestCase):
                 "Polycipiviridae\tSRR12261680\tNODE_2_length_12300\t12300\t6500\t11800\tRNA-dependent RNA polymerase\n",
                 encoding="utf-8",
             )
+            esm_val = tdir / "esm.tsv"
+            esm_val.write_text(
+                "candidate_id\tcontig\tstructural_verdict\trdrp_tmscore\n"
+                "c1\tSRR12261680|NODE_2_length_12300\tvalidated_rdrp_high\t0.881\n",
+                encoding="utf-8",
+            )
+            sb_hits = tdir / "sb.tsv"
+            sb_hits.write_text(
+                "qseqid\tsseqid\tpident\tlength\tqlen\tslen\tevalue\tbitscore\n"
+                "SRR13742307|NODE_1_length_12390\tc1\t88.9\t512\t12390\t512\t1e-200\t950\n",
+                encoding="utf-8",
+            )
             out_svg = tdir / "fig4.svg"
             rc = plot_phylo_manuscript.main([
                 "--mode", "fig4",
                 "--tree", str(tree),
                 "--meta", str(meta),
                 "--genome-map", str(gm),
+                "--esm-validation", str(esm_val),
+                "--snowball-hits", str(sb_hits),
                 "--out-svg", str(out_svg),
             ])
             self.assertEqual(rc, 0)
@@ -130,6 +144,9 @@ class TestManuscriptFigureGenerators(unittest.TestCase):
             self.assertIn("I. confusus (NA)", text)
             self.assertIn("I. typographus (EU)", text)
             self.assertIn("Genome &amp; ORF Architecture", text)
+            self.assertIn("RdRp 3D", text)
+            self.assertIn("3D 0.88", text)
+            self.assertIn("89%", text)
             self.assertNotIn("Locusta migratoria", text)
             self.assertNotIn("SRR9999999", text)
 
