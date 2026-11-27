@@ -62,7 +62,17 @@ def load_manifest(path: Optional[Path]) -> Dict[str, Dict[str, str]]:
                 or ""
             ).strip()
             bp = (row.get("bioproject") or row.get("BioProject") or "").strip()
-            group = (row.get("group") or row.get("batch") or "").strip()
+            group = " ".join(
+                filter(
+                    None,
+                    [
+                        (row.get("group") or "").strip(),
+                        (row.get("batch") or "").strip(),
+                        (row.get("family") or "").strip(),
+                        (row.get("scenario") or "").strip(),
+                    ],
+                )
+            )
             out[run] = {"host": host, "bioproject": bp, "group": group}
     return out
 
