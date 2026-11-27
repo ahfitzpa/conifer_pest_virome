@@ -78,5 +78,40 @@ class TestSnowballWorkflow(unittest.TestCase):
         self.assertEqual(manifest_rows[0]["run_id"], "SRR_A1")
 
 
+    def test_open_host_specificity_and_spotcheck_selection(self) -> None:
+        import open_host_specificity
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            inp = tdir / "open_host.tsv"
+            inp.write_text(
+                "run_id\tbioproject\tscientific_name\tmatched_sotus\tmax_coverage\tsize_mb\n"
+                "SRR1\tPRJNA1\tIps nitidus\tu993423\t80\t900\n"
+                "SRR2\tPRJNA2\tIps typographus\tu993423\t60\t800\n"
+                "SRR3\tPRJNA3\tIps duplicatus\tu1029776\t55\t700\n"
+                "SRR4\tPRJNA4\tVespula vulgaris\tu653762\t120\t600\n"
+                "SRR5\tPRJNA5\tGraminella nigrifrons\tu653762\t90\t1200\n"
+                "SRR6\tPRJNA6\tMus musculus\tu761589\t30\t500\n"
+                "SRR7\tPRJNA7\tHomo sapiens\tu761589\t25\t450\n",
+                encoding="utf-8",
+            )
+            spec = tdir / "spec.tsv"
+            man = tdir / "spotcheck.csv"
+            rc = open_host_specificity.main([
+                "--open-host-tsv", str(inp),
+                "--out-specificity-tsv", str(spec),
+                "--out-spotcheck-manifest", str(man),
+            ])
+            self.assertEqual(rc, 0)
+            spec_txt = spec.read_text(encoding="utf-8")
+            self.assertIn("strict_beetle_specialist", spec_txt)
+            self.assertIn("pan_arthropod_generalist", spec_txt)
+            self.assertIn("broad_low_specificity", spec_txt)
+            man_txt = man.read_text(encoding="utf-8")
+            self.assertIn("SRR4", man_txt)  # Vespula vulgaris generalist
+            self.assertIn("SRR3", man_txt)  # Ips duplicatus sister specialist
+            self.assertIn("OpenHost_SpotCheck", man_txt)
+
+
 if __name__ == "__main__":
     unittest.main()

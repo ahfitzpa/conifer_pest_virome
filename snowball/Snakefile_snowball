@@ -191,3 +191,93 @@ rule snowball_cross_match:
             >> "{output.hits}" 2>> "{log}"
         rm -rf "{OUT_DIR}/tmp_cross"
         """
+
+
+OPEN_HOST_DIR = "results/open_host"
+
+
+rule open_host_specificity:
+    """Open-host Serratus query (no host filter) + Option-B spot-check manifest."""
+    input:
+        hits      = f"{OUT_DIR}/palmdb_hits.tsv",
+        validated = f"{OUT_DIR}/validated_novel_rdrps.tsv",
+    output:
+        candidates  = f"{OPEN_HOST_DIR}/open_host_candidates.tsv",
+        specificity = f"{OPEN_HOST_DIR}/open_host_sotu_specificity.tsv",
+        manifest    = f"{OPEN_HOST_DIR}/manifest_spotcheck.csv",
+    params:
+        existing = INP.get("existing_manifest", "../data/intake/manifest.csv"),
+    conda:
+        ENV_SNOWBALL
+    log:
+        "logs/snowball/open_host_specificity.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "{OPEN_HOST_DIR}"
+        TMP_CFG="{OPEN_HOST_DIR}/snowball_open_host.yaml"
+        sed 's/^  host_regex:.*/  host_regex: ""/; s/^  max_total_runs:.*/  max_total_runs: 500/; s/^  max_runs_per_bioproject:.*/  max_runs_per_bioproject: 0/' \
+            configs/snowball.yaml > "${{TMP_CFG}}"
+        EXISTING_ARG=""
+        [ -s "{params.existing}" ] && EXISTING_ARG="--existing-manifest {params.existing}"
+        python3 scripts/serratus_snowball.py \
+            --config "${{TMP_CFG}}" \
+            --palmdb-hits "{input.hits}" \
+            --validated-tsv "{input.validated}" \
+            $EXISTING_ARG \
+            --out-candidates "{output.candidates}" \
+            --out-manifest "{OPEN_HOST_DIR}/_open_host_all_manifest.csv" \
+            --out-combined "{OPEN_HOST_DIR}/_open_host_all_combined.csv" \
+            > "{log}" 2>&1
+        python3 scripts/open_host_specificity.py \
+            --open-host-tsv "{output.candidates}" \
+            --out-specificity-tsv "{output.specificity}" \
+            --out-spotcheck-manifest "{output.manifest}" \
+            >> "{log}" 2>&1
+        rm -f "${{TMP_CFG}}" "{OPEN_HOST_DIR}/_open_host_all_manifest.csv" "{OPEN_HOST_DIR}/_open_host_all_combined.csv"
+        """
+
+
+rule spotcheck_cross_match:
+    """Verify assembled Option-B OpenHost_SpotCheck contigs against Round-1 validated RdRps."""
+    input:
+        seed_faa = f"{OUT_DIR}/validated_novel_rdrps.faa",
+    output:
+        hits = f"{OPEN_HOST_DIR}/spotcheck_vs_seed_blastx.tsv",
+    params:
+        contigs_glob = "../data/03.rnaviralSPAdes/OpenHost_SpotCheck/*/filtered_contigs.fasta",
+        evalue       = 1e-10,
+        min_pident   = 40.0,
+    threads: 4
+    conda:
+        ENV_SNOWBALL
+    log:
+        "logs/snowball/spotcheck_cross_match.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "{OPEN_HOST_DIR}/tmp_cross"
+        TMP_CONTIGS="{OPEN_HOST_DIR}/tmp_cross/spotcheck_contigs_prefixed.fasta"
+        : > "${{TMP_CONTIGS}}"
+        for f in {params.contigs_glob}; do
+            [ -s "$f" ] || continue
+            RUN_ID="$(basename "$(dirname "$f")")"
+            awk -v rid="$RUN_ID" '/^>/{{print ">" rid "|" substr($0,2); next}} {{print}}' "$f" >> "${{TMP_CONTIGS}}"
+        done
+        if [ ! -s "${{TMP_CONTIGS}}" ] || [ ! -s "{input.seed_faa}" ]; then
+            printf "qseqid\tsseqid\tpident\tlength\tqlen\tslen\tevalue\tbitscore\n" > "{output.hits}"
+            echo "[spotcheck_cross_match] No spot-check contigs found; wrote empty table." > "{log}"
+            exit 0
+        fi
+        diamond makedb --in "{input.seed_faa}" -d "{OPEN_HOST_DIR}/tmp_cross/seed_rdrps" > "{log}" 2>&1
+        printf "qseqid\tsseqid\tpident\tlength\tqlen\tslen\tevalue\tbitscore\n" > "{output.hits}"
+        diamond blastx \
+            --query "${{TMP_CONTIGS}}" \
+            --db "{OPEN_HOST_DIR}/tmp_cross/seed_rdrps.dmnd" \
+            --outfmt 6 qseqid sseqid pident length qlen slen evalue bitscore \
+            --evalue {params.evalue} \
+            --id {params.min_pident} \
+            --sensitive \
+            --max-target-seqs 5 \
+            --threads {threads} \
+            >> "{output.hits}" 2>> "{log}"
+        rm -rf "{OPEN_HOST_DIR}/tmp_cross"
+        """
