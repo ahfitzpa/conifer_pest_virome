@@ -27,6 +27,7 @@ ESM_DEMARC_GLOBS = ESM_CFG.get(
 )
 ESM_FOLDSEEK_DB = ESM_CFG.get("foldseek_db", os.path.join(PHASE2, "references/foldseek/pdb"))
 ESM_FOLDSEEK_RT_DB = ESM_CFG.get("foldseek_rt_db", "")
+ESM_BFVD_DB = ESM_CFG.get("foldseek_bfvd_db", os.path.join(PHASE2, "references/foldseek/bfvd"))
 ESM_DEDICATED_RDRP_DB = bool(ESM_CFG.get("dedicated_rdrp_db", False))
 
 
@@ -34,6 +35,12 @@ rule esm_rdrp_all:
     input:
         validation = f"{ESM_DIR}/esm_rdrp_validation.tsv",
         summary    = f"{ESM_DIR}/esm_rdrp_summary.tsv",
+
+
+rule esm_rdrp_bfvd_all:
+    """Complementary CPU-only Foldseek search of folded RdRps against BFVD (Kim et al., NAR 2026)."""
+    input:
+        bfvd_hits = f"{ESM_DIR}/foldseek_bfvd_hits.tsv",
 
 
 rule esm_rdrp_select:
@@ -224,4 +231,66 @@ rule esm_rdrp_summarize:
             --out-validation "{output.validation}" \
             --out-summary "{output.summary}" \
             > "{log}" 2>&1
+        """
+
+
+rule esm_rdrp_foldseek_bfvd:
+    """Complementary CPU-only Foldseek search against BFVD (Big Fantastic Virus Database).
+
+    Retains PDB + RT negative-control triage as the primary filter (since BFVD
+    contains only viral structures and cannot flag host helicases or RTs), while
+    providing broad ICTV viral-family structural neighbours across predicted
+    viral proteomes (Kim et al., NAR 2026).
+
+    Run directly on Sonic without re-folding:
+      SETUP_BFVD_DB=1 snakemake -s Snakefile_novel --cores 8 --use-conda \
+        --conda-prefix .snakemake/conda --allowed-rules esm_rdrp_foldseek_bfvd esm_rdrp_bfvd_all \
+        -- esm_rdrp_bfvd_all
+    """
+    input:
+        done = f"{ESM_DIR}/structures/.folded.done",
+    output:
+        hits = f"{ESM_DIR}/foldseek_bfvd_hits.tsv",
+    params:
+        pdb_dir = f"{ESM_DIR}/structures",
+        db      = ESM_BFVD_DB,
+        tmpdir  = f"{ESM_DIR}/tmp_foldseek_bfvd",
+        evalue  = float(ESM_CFG.get("foldseek_evalue", 1e-2)),
+    threads: 8
+    conda:
+        ESM_ENV
+    log:
+        "logs/esm_rdrp/foldseek_bfvd.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "{params.tmpdir}"
+        if [ -z "$(find "{params.pdb_dir}" -maxdepth 1 -name '*.pdb' -size +0c -print -quit)" ]; then
+            printf "query\ttarget\tfident\talnlen\tevalue\tbits\tqtmscore\tttmscore\talntmscore\tlddt\tprob\ttheader\n" > "{output.hits}"
+            echo "[foldseek_bfvd] No PDB structures present; wrote empty hits file." > "{log}"
+            exit 0
+        fi
+        if [ ! -e "{params.db}" ] && [ ! -e "{params.db}.dbtype" ]; then
+            if [ "${{SETUP_BFVD_DB:-0}}" = "1" ]; then
+                mkdir -p "$(dirname "{params.db}")" "{params.tmpdir}_dl"
+                foldseek databases BFVD "{params.db}" "{params.tmpdir}_dl" --threads {threads} > "{log}" 2>&1
+                rm -rf "{params.tmpdir}_dl"
+            else
+                echo "[foldseek_bfvd] ERROR: BFVD Foldseek DB not found at {params.db}" > "{log}"
+                echo "Re-run with SETUP_BFVD_DB=1 or run: foldseek databases BFVD {params.db} {params.tmpdir}_dl" >> "{log}"
+                exit 1
+            fi
+        fi
+        printf "query\ttarget\tfident\talnlen\tevalue\tbits\tqtmscore\tttmscore\talntmscore\tlddt\tprob\ttheader\n" > "{output.hits}"
+        foldseek easy-search \
+            "{params.pdb_dir}" \
+            "{params.db}" \
+            "{params.tmpdir}/raw_hits.tsv" \
+            "{params.tmpdir}" \
+            --threads {threads} \
+            -e {params.evalue} \
+            --max-seqs 10 \
+            --format-output "query,target,fident,alnlen,evalue,bits,qtmscore,ttmscore,alntmscore,lddt,prob,theader" \
+            >> "{log}" 2>&1
+        cat "{params.tmpdir}/raw_hits.tsv" >> "{output.hits}"
+        rm -rf "{params.tmpdir}"
         """
