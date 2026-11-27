@@ -273,6 +273,12 @@ rule esm_rdrp_foldseek_bfvd:
             if [ "${{SETUP_BFVD_DB:-0}}" = "1" ]; then
                 mkdir -p "$(dirname "{params.db}")" "{params.tmpdir}_dl"
                 foldseek databases BFVD "{params.db}" "{params.tmpdir}_dl" --threads {threads} > "{log}" 2>&1
+                if [ ! -e "{params.db}.dbtype" ]; then
+                    SUBDIR=$(find "{params.tmpdir}_dl" -maxdepth 3 -type d -name "bfvd_foldseekdb" -print -quit)
+                    if [ -n "$SUBDIR" ] && [ -e "$SUBDIR/bfvd.dbtype" ]; then
+                        mv "$SUBDIR"/bfvd* "$(dirname "{params.db}")/"
+                    fi
+                fi
                 rm -rf "{params.tmpdir}_dl"
             else
                 echo "[foldseek_bfvd] ERROR: BFVD Foldseek DB not found at {params.db}" > "{log}"
