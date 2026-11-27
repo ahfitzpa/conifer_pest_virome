@@ -120,6 +120,30 @@ class TestSnowballWorkflow(unittest.TestCase):
             self.assertEqual(rows[0]["source"], "sra")
             self.assertEqual(rows[0]["sample_id"], rows[0]["run_id"])
 
+    def test_open_host_enrichment_fisher_and_cli(self) -> None:
+        import open_host_enrichment
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            inp = tdir / "open_host.tsv"
+            rows_txt = ["run_id\tscientific_name\tlibrary_source\tmatched_sotus"]
+            for i in range(15):
+                rows_txt.append(f"SRR_IPS_{i}\tIps confusus\tTRANSCRIPTOMIC\tu993423")
+            for i in range(10):
+                rows_txt.append(f"SRR_GEN_{i}\tVespula vulgaris\tTRANSCRIPTOMIC\tu653762")
+            inp.write_text("\n".join(rows_txt) + "\n", encoding="utf-8")
+            out_enr = tdir / "enrichment.tsv"
+            rc = open_host_enrichment.main([
+                "--open-host-tsv", str(inp),
+                "--out-enrichment-tsv", str(out_enr),
+            ])
+            self.assertEqual(rc, 0)
+            with out_enr.open("r", encoding="utf-8") as fh:
+                by_sotu = {r["sotu"]: r for r in csv.DictReader(fh, delimiter="\t")}
+            self.assertEqual(by_sotu["u993423"]["host_association_tier"], "beetle_restricted_in_archives")
+            self.assertLess(float(by_sotu["u993423"]["fisher_exact_p"]), 1e-10)
+            self.assertGreater(float(by_sotu["u993423"]["beetle_odds_ratio"]), 100.0)
+
 
 if __name__ == "__main__":
     unittest.main()

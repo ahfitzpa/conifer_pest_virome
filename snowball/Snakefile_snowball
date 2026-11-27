@@ -237,6 +237,29 @@ rule open_host_specificity:
         """
 
 
+rule open_host_enrichment:
+    """Compute sampling-effort-normalized Fisher's exact host enrichment & library-source breakdown."""
+    input:
+        candidates = f"{OPEN_HOST_DIR}/open_host_candidates.tsv",
+    output:
+        enrichment   = f"{OPEN_HOST_DIR}/open_host_enrichment.tsv",
+        denominators = f"{OPEN_HOST_DIR}/serratus_denominators.tsv",
+    conda:
+        ENV_SNOWBALL
+    log:
+        "logs/snowball/open_host_enrichment.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "{OPEN_HOST_DIR}"
+        python3 scripts/open_host_enrichment.py \
+            --open-host-tsv "{input.candidates}" \
+            --query-serratus \
+            --out-enrichment-tsv "{output.enrichment}" \
+            --out-denominators-tsv "{output.denominators}" \
+            > "{log}" 2>&1
+        """
+
+
 rule spotcheck_cross_match:
     """Verify assembled Option-B OpenHost_SpotCheck contigs against Round-1 validated RdRps."""
     input:

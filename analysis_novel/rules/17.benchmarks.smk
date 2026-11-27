@@ -129,3 +129,37 @@ rule benchmark_discovery_and_compute:
             --out-dir "{params.out_dir}" \
             > "{log}" 2>&1
         """
+
+
+rule benchmark_polycipiviridae_evolution:
+    """Stage 17.6: Pan-Holarctic Ips Polycipiviridae phylogeography, ORF intactness & Nei-Gojobori dN/dS."""
+    output:
+        genomes = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution/polycipiviridae_genomes_summary.tsv",
+        pairs   = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution/polycipiviridae_pairwise_dnds.tsv",
+        summary = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution/polycipiviridae_phylogeography_summary.tsv",
+        svg     = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution/polycipiviridae_evolution.svg",
+    params:
+        out_dir  = f"{BENCH_OUT_DIR}/05_polycipiviridae_evolution",
+        manifest = f"{SNOWBALL_DIR}/manifest_combined.csv",
+        fam_dir  = "results/phylogenetics/Polycipiviridae",
+    log:
+        "logs/benchmarks/05_polycipiviridae_evolution.log",
+    shell:
+        """
+        mkdir -p $(dirname {log}) "{params.out_dir}"
+        FA_ARGS=""
+        for f in "{params.fam_dir}"/*novel*.fasta "{params.fam_dir}"/*contigs*.fasta; do
+            [ -s "$f" ] && FA_ARGS="$FA_ARGS --contigs-fasta $f"
+        done
+        if [ -z "$FA_ARGS" ]; then
+            echo "[polycipiviridae_evolution] ERROR: No Polycipiviridae contig FASTA found in {params.fam_dir}" > "{log}"
+            exit 1
+        fi
+        MAN_ARG=""
+        [ -s "{params.manifest}" ] && MAN_ARG="--manifest {params.manifest}"
+        python3 scripts/analyze_polycipiviridae_evolution.py \
+            $FA_ARGS \
+            $MAN_ARG \
+            --out-dir "{params.out_dir}" \
+            > "{log}" 2>&1
+        """

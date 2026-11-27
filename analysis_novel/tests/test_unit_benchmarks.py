@@ -122,6 +122,46 @@ class TestStage17Benchmarks(unittest.TestCase):
             self.assertEqual(rows[0]["rule_name"], "esm_rdrp_fold")
             self.assertEqual(rows[0]["peak_rss_gb"], "4.00")
 
+    def test_polycipiviridae_evolution_dnds_and_svg(self) -> None:
+        import analyze_polycipiviridae_evolution
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            # Construct two synthetic viral coding genomes (synonymous mutations only -> dN/dS ~ 0)
+            base_codons = ["ATG"] + ["GCT", "GAA", "TTC", "CTG", "AAA", "GGT", "GAC", "GAC"] * 25 + ["TAA"]
+            syn_codons = ["ATG"] + ["GCC", "GAG", "TTT", "CTA", "AAG", "GGC", "GAT", "GAT"] * 25 + ["TAA"]
+            seq1 = "A" * 100 + "".join(base_codons) + "C" * 100
+            seq2 = "A" * 100 + "".join(syn_codons) + "C" * 100
+            fa = tdir / "poly.fasta"
+            fa.write_text(
+                f">SRR12261680|NODE_2\n{seq1}\n>SRR13742307|NODE_1\n{seq2}\n",
+                encoding="utf-8",
+            )
+            man = tdir / "manifest.csv"
+            man.write_text(
+                "run_id,scientificname,bioproject\n"
+                "SRR12261680,Ips confusus,PRJNA647034\n"
+                "SRR13742307,Ips typographus,PRJNA699282\n",
+                encoding="utf-8",
+            )
+            out_dir = tdir / "05_poly"
+            rc = analyze_polycipiviridae_evolution.main([
+                "--contigs-fasta", str(fa),
+                "--manifest", str(man),
+                "--min-length", "500",
+                "--min-orf-aa", "100",
+                "--out-dir", str(out_dir),
+            ])
+            self.assertEqual(rc, 0)
+            with (out_dir / "polycipiviridae_pairwise_dnds.tsv").open("r", encoding="utf-8") as fh:
+                pairs = list(csv.DictReader(fh, delimiter="\t"))
+            self.assertEqual(len(pairs), 1)
+            self.assertEqual(pairs[0]["geographic_stratum"], "inter_continental_nearctic_palearctic")
+            self.assertEqual(float(pairs[0]["aa_identity_pct"]), 100.0)
+            self.assertLess(float(pairs[0]["dnds"]), 0.05)
+            svg = (out_dir / "polycipiviridae_evolution.svg").read_text(encoding="utf-8")
+            self.assertTrue(svg.startswith("<svg "))
+
 
 if __name__ == "__main__":
     unittest.main()
