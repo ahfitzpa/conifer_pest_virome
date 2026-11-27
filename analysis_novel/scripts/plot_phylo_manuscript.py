@@ -356,7 +356,7 @@ def load_genome_map_data(
 
 STRUCT_STATUS_STYLE: Dict[str, Tuple[str, str]] = {
     "esm_validated": ("#059669", "3D RdRp validated (ESMFold + Foldseek)"),
-    "snowball_homolog": ("#0EA5E9", "Snowball homolog of 3D-validated RdRp"),
+    "snowball_homolog": ("#0EA5E9", "Round-2 homolog of 3D-validated RdRp"),
     "seq_only": ("#CBD5E1", "Sequence-validated (not folded / >=40% aa ID)"),
 }
 
@@ -553,7 +553,7 @@ def render_tree_panel(
             f'fill="#475569">{escape(panel_subtitle)}</text>'
         )
 
-    top_y = y0 + 50.0
+    top_y = y0 + 60.0
 
     # Assign leaf Y positions and cumulative X distances
     leaf_y: Dict[int, float] = {}

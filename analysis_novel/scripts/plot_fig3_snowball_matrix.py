@@ -170,7 +170,7 @@ def build_svg(
         '  </style>',
         '</defs>',
         f'<rect x="0" y="0" width="{W}" height="{H}" fill="#FFFFFF"/>',
-        '<text x="24" y="30" class="title">Snowball replication &amp; pan-Holarctic cross-host virus sharing (DIAMOND blastx)</text>',
+        '<text x="24" y="30" class="title">Round-2 RdRp-guided SRA retrieval &amp; pan-Holarctic cross-host virus sharing (DIAMOND blastx)</text>',
     ]
 
     if not seeds or not runs:
