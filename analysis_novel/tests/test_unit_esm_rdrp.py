@@ -184,6 +184,26 @@ class TestSummarizeEsmRdRp(unittest.TestCase):
             self.assertEqual(rows["cand_0001__SRR1_n1"]["structural_verdict"], "validated_rdrp_high")
             self.assertEqual(rows["cand_0002__SRR1_n3"]["structural_verdict"], "rt_or_non_rdrp_flag")
 
+    def test_spb1_not_matched_as_pb1_rdrp(self) -> None:
+        self.assertEqual(
+            summarize_esm_rdrp.classify_target_header(
+                "7naf-assembly1_w State E2 nucleolar 60S ribosomal biogenesis intermediate - Spb1-MTD local model"
+            ),
+            "other",
+        )
+        self.assertEqual(
+            summarize_esm_rdrp.classify_target_header(
+                "7r7o-assembly2_B Structure of methyltransferase domain of Spb1 bound to SAM"
+            ),
+            "other",
+        )
+        self.assertEqual(
+            summarize_esm_rdrp.classify_target_header(
+                "6qpf-assembly1_B Influenza A virus PB1 polymerase subunit"
+            ),
+            "rdrp",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
